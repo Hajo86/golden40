@@ -32,7 +32,7 @@ window.EVENT = {
   thumbEdge: 420,
   thumbQuality: 0.68,
 
-  guestUrl: '',                 // wird gesetzt, sobald das Repo steht
+  guestUrl: 'https://hajo86.github.io/golden40/',
 
   // Dasselbe Supabase-Projekt wie bei Thomas — getrennt über die eventId oben.
   supabaseUrl: 'https://futdxrnvbdaofdhyaicy.supabase.co',
@@ -44,7 +44,7 @@ window.EVENT = {
     'Fotografier den Abend, wie du ihn erlebst: die Golden Hour am Empfang, den ' +
     'Rodizio-Spieß, die Fotowand im Flur, den Dancefloor. Alles, was du hier ' +
     'hochlädst, landet im gemeinsamen Album und ist nach der Party für alle Gäste ' +
-    'sichtbar. Also: Handy raus, roter Punkt ins Bild, und los.',
+    'sichtbar. Also: Handy raus und los.',
 
   notes: [
     'Hochladen ohne Anmeldung — kein Konto, keine App-Installation.',
@@ -99,7 +99,6 @@ window.EVENT = {
 
 window.CATEGORIES = [
   { id: 'golden',  label: 'Golden Hour',      icon: '🥂' },
-  { id: 'dot',     label: 'Der rote Punkt',   icon: '🔴' },
   { id: 'bar',     label: 'An der Bar',       icon: '🍸' },
   { id: 'dinner',  label: 'Rodizio & Buffet', icon: '🔥', timed: true },
   { id: 'floor',   label: 'Dancefloor',       icon: '💃', timed: true },
@@ -111,24 +110,16 @@ window.TASKS = [
   // ---- Golden Hour / Fotowand (Challenges 1 und 5 aus dem Briefing) ------
   { id: 'g01', cat: 'golden', text: 'Dein Golden-Hour-Glas vor der Fotowand.' },
   { id: 'g02', cat: 'golden', text: 'Ein Paar- oder Gruppenfoto an der goldenen Fotowand im Flur.', icon: '📸' },
-  { id: 'g03', cat: 'golden', text: 'Fotografiere den Empfang so, dass man das Gold im Bild sieht.', icon: '✨' },
-
-  // ---- Der rote Punkt (Challenge 2) --------------------------------------
-  { id: 'r01', cat: 'dot',    text: 'Du und dein roter Punkt.' },
-  { id: 'r02', cat: 'dot',    text: 'Finde den auffälligsten roten Punkt des Abends.' },
-  { id: 'r03', cat: 'dot',    text: 'Drei rote Punkte in einem Bild.' },
 
   // ---- An der Bar ---------------------------------------------------------
   { id: 'b01', cat: 'bar',    text: 'Bestelle ein Fako Royale und lass dich damit fotografieren.', icon: '🥂' },
   { id: 'b02', cat: 'bar',    text: 'Fotografiere einen Red Light so, dass man ihn sofort bestellen will.', icon: '🍓' },
-  { id: 'b03', cat: 'bar',    text: 'Erwische den Barkeeper beim Shaken.', icon: '🧊' },
-  { id: 'b04', cat: 'bar',    text: 'Zwei Gäste, die zufällig denselben Drink in der Hand haben.' },
+  { id: 'b03', cat: 'bar',    text: 'Erwische die Barkeeperin beim Shaken.', icon: '🧊' },
   { id: 'b05', cat: 'bar',    text: 'Probiere einen Drink, den du noch nie getrunken hast — Beweisfoto.', icon: '🌿' },
 
   // ---- Rodizio & Buffet (Challenge 3) ------------------------------------
   { id: 'd01', cat: 'dinner', text: 'Der schönste Spieß vom Rodizio.' },
   { id: 'd02', cat: 'dinner', text: 'Fotografiere, wie am Buffet frisch vom Spieß geschnitten wird.', icon: '🔪' },
-  { id: 'd03', cat: 'dinner', text: 'Dein vollster Teller des Abends.', icon: '🍽️' },
   { id: 'd04', cat: 'dinner', text: 'Der Tiramisu-Tower „40" — bevor er angeschnitten wird.', icon: '🍰' },
 
   // ---- Dancefloor (Challenge 4) ------------------------------------------
@@ -140,12 +131,10 @@ window.TASKS = [
   { id: 'n01', cat: 'guests', text: 'Gruppenfoto mit mindestens fünf Gästen.' },
   { id: 'n02', cat: 'guests', text: 'Stell dich jemandem vor, den du noch nicht kennst — Selfie zu zweit.', icon: '👋' },
   { id: 'n03', cat: 'guests', text: 'Das beste Outfit des Abends in Schwarz, Gold oder Chrom.', icon: '🖤' },
-  { id: 'n04', cat: 'guests', text: 'Lass dir erzählen, woher jemand Helge kennt — und fotografiere ihn dabei.' },
 
   // ---- Helge (Challenge 6) ------------------------------------------------
   { id: 'h01', cat: 'helge',  text: 'Das Geburtstagskind beim Anstoßen.' },
   { id: 'h02', cat: 'helge',  text: 'Mache ein Selfie mit Helge.' },
   { id: 'h03', cat: 'helge',  text: 'Helge und Nadine zusammen in einem Bild.' },
-  { id: 'h04', cat: 'helge',  text: 'Ein Moment, in dem Helge lacht.' },
   { id: 'h05', cat: 'helge',  text: 'Ein Foto, das Helge auch mit 50 noch gerne anschaut.', icon: '🕰️' },
 ];

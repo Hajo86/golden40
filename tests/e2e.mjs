@@ -145,7 +145,7 @@ await page.goto(BASE, { waitUntil: 'networkidle' });
 ok(await page.locator('[data-task]').count() > 0, 'Nach Reload direkt in der Aufgabenliste');
 
 // --- Falsche Datei ---
-await page.click('[data-task="r01"]');
+await page.click('[data-task="b01"]');
 await page.waitForSelector('#cam', { state: 'attached' });
 await page.setInputFiles('#cam', { name: 'test.txt', mimeType: 'text/plain', buffer: Buffer.from('kein Bild') });
 await page.waitForSelector('.toast', { timeout: 5000 });
