@@ -10,7 +10,11 @@
    ========================================================================== */
 
 window.EVENT = {
-  eventId: 'golden40',          // trennt die Fotos von anderen Festen in derselben Datenbank
+  // Die Event-Kennung setzt sich aus diesem Teil und dem Schlüssel aus der
+  // Adresse zusammen (…/#k=SCHLÜSSEL). Der Schlüssel steht bewusst NICHT hier:
+  // So lässt sich aus dem öffentlichen Quelltext nicht ableiten, unter welcher
+  // Kennung die Fotos liegen.
+  eventPrefix: 'golden40',
 
   title: 'The Golden 40',
   subtitle: 'Mach mit: {n} Fotoaufgaben',
@@ -32,7 +36,7 @@ window.EVENT = {
   thumbEdge: 420,
   thumbQuality: 0.68,
 
-  guestUrl: 'https://hajo86.github.io/golden40/',
+  guestUrl: 'https://hajo86.github.io/golden40/#k=7wvnlpqv',
 
   // Dasselbe Supabase-Projekt wie bei Thomas — getrennt über die eventId oben.
   supabaseUrl: 'https://futdxrnvbdaofdhyaicy.supabase.co',

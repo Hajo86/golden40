@@ -15,6 +15,7 @@ await ctx.route('**/tasks.js', async route => {
     .replace(/supabaseKey: '[^']*'/, "supabaseKey: ''");
   route.fulfill({ response: res, body });
 });
+await ctx.addInitScript((k) => localStorage.setItem('ep.key', JSON.stringify(k)), '7wvnlpqv');
 const page = await ctx.newPage();
 const errors = [];
 page.on('console', m => {

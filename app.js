@@ -48,7 +48,7 @@
   /* ======================= 2. Konfiguration ============================== */
   var LS = {
     guest: 'ep.guest', token: 'ep.token', consent: 'ep.consent',
-    sb: 'ep.sb', pin: 'ep.pin', cfg: 'ep.cfg', mine: 'ep.mine', url: 'ep.url',
+    sb: 'ep.sb', pin: 'ep.pin', cfg: 'ep.cfg', mine: 'ep.mine', url: 'ep.url', key: 'ep.key',
   };
   function lsGet(k, fb) {
     try { var v = localStorage.getItem(k); return v == null ? fb : JSON.parse(v); }
@@ -57,6 +57,31 @@
   function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
 
   var CFG = Object.assign({}, window.EVENT, lsGet(LS.cfg, {}));
+
+  /* ---- Zugangsschlüssel ---------------------------------------------------
+     Die Adresse der Gäste endet auf #k=SCHLÜSSEL. Der Schlüssel wird beim
+     ersten Öffnen gemerkt (damit er das Weiterklicken, das Neuladen und den
+     Start vom Home-Bildschirm übersteht) und bildet zusammen mit eventPrefix
+     die Event-Kennung. Ohne Schlüssel kennt die App die Kennung nicht — und
+     ohne Kennung gibt der Server nichts heraus (siehe schema.sql).            */
+  function readKeyFromUrl() {
+    var m = (location.hash || '').match(/[#&]k=([A-Za-z0-9_-]{4,40})/);
+    return m ? m[1] : '';
+  }
+  var accessKey = lsGet(LS.key, '');
+  (function initKey() {
+    var fromUrl = readKeyFromUrl();
+    if (fromUrl) {
+      accessKey = fromUrl;
+      lsSet(LS.key, accessKey);
+      // Schlüssel aus der Adresszeile nehmen, damit er nicht in jedem
+      // Screenshot und in keinem geteilten Link mehr auftaucht.
+      try { history.replaceState(null, '', location.pathname + location.search + '#/'); }
+      catch (e) { location.hash = '#/'; }
+    }
+  })();
+  function hasKey() { return !!accessKey; }
+  if (CFG.eventPrefix) CFG.eventId = CFG.eventPrefix + '-' + (accessKey || 'kein-schluessel');
   var TASKS = (window.TASKS || []).filter(function (t) { return !t.off; });
   var CATS = window.CATEGORIES || [];
   function cat(id) {
@@ -202,19 +227,14 @@
     // ein Gast sein eigenes Foto löschen darf, und hat in der Galerie aller
     // Gäste nichts zu suchen.
     list: function (limit) {
-      var q = '/rest/v1/event_photos?select=' +
-        'id,event_id,task_id,guest_name,caption,path,width,height,created_at,hidden' +
-        '&event_id=eq.' + encodeURIComponent(CFG.eventId) +
-        '&hidden=is.false&order=created_at.desc&limit=' + (limit || 400);
-      return sbFetch(q, { headers: sbHeaders() });
+      return this.rpc('ep_list_photos', { p_event: CFG.eventId, p_limit: limit || 400 })
+        .then(function (r) { return r || []; });
     },
     // Die eigenen Fotos — daraus wird der Fortschritt berechnet. Damit stimmt
     // er auch dann noch, wenn der Gastgeber Fotos gelöscht hat.
     mine: function () {
-      var q = '/rest/v1/event_photos?select=*&event_id=eq.' + encodeURIComponent(CFG.eventId) +
-        '&owner_token=eq.' + encodeURIComponent(ownerToken) +
-        '&order=created_at.desc&limit=400';
-      return sbFetch(q, { headers: sbHeaders() });
+      return this.rpc('ep_list_mine', { p_event: CFG.eventId, p_token: ownerToken })
+        .then(function (r) { return r || []; });
     },
     insert: function (row) {
       return sbFetch('/rest/v1/event_photos', {
@@ -565,6 +585,32 @@
         (state.queue.length === 1 ? ' Foto wartet' : ' Fotos warten') + ' auf Versand – das läuft automatisch weiter.</div>';
     }
     return h;
+  }
+
+  /* ---- Ohne Schlüssel: keine Galerie, kein Upload ---- */
+  function viewLocked() {
+    view.innerHTML =
+      '<div style="padding:40px 0 8px;text-align:center">' +
+      logoHtml(1.8) +
+      '<div class="script" style="font-size:2.2rem;margin:14px 0 6px">' + esc(CFG.title || '') + '</div>' +
+      '<p style="color:var(--muted);max-width:380px;margin:18px auto">' +
+      'Diese Seite gehört zu einer privaten Feier. Zum Mitmachen brauchst du den ' +
+      'QR-Code, der beim Fest aushängt — er enthält den Zugang.' +
+      '</p>' +
+      '<div class="card" style="padding:16px;margin:22px auto;max-width:380px;text-align:left">' +
+      '<label class="f" for="kin">Zugang von Hand eintragen</label>' +
+      '<input id="kin" type="text" placeholder="Schlüssel vom Aushang" autocapitalize="off" autocomplete="off">' +
+      '<div class="row" style="margin-top:12px"><button class="btn" id="kgo">Weiter</button></div>' +
+      '<div class="hint">Steht klein unter dem QR-Code.</div>' +
+      '</div></div>';
+    function submit() {
+      var k = ($('#kin').value || '').trim().replace(/^.*[#&]k=/, '');
+      if (!/^[A-Za-z0-9_-]{4,40}$/.test(k)) { toast('Das sieht nicht nach einem Zugang aus.'); return; }
+      accessKey = k; lsSet(LS.key, k);
+      location.reload();
+    }
+    $('#kgo').onclick = submit;
+    $('#kin').onkeydown = function (e) { if (e.key === 'Enter') submit(); };
   }
 
   /* ---- Start / Onboarding ---- */
@@ -1041,7 +1087,10 @@
   }
 
   /* ---- Gäste-Adresse (steckt im QR-Code) ---- */
-  function ownUrl() { return location.href.split('#')[0]; }
+  function ownUrl() {
+    var base = location.href.split('#')[0];
+    return hasKey() ? base + '#k=' + accessKey : base;
+  }
   // Reihenfolge bewusst so: eigene Eingabe > echte Adresse der Seite >
   // Voreinstellung aus tasks.js. Damit stimmt der QR-Code auch dann, wenn das
   // Repository (und damit die Adresse) später umbenannt wird — nur in einer
@@ -1124,6 +1173,43 @@
         '<b>„App installieren"</b> bzw. „Zum Startbildschirm hinzufügen".') +
       '</div></div>';
   }
+  // Bar- und Menükarte zum Hinstellen: beide Spalten plus QR-Code, damit die
+  // Gäste beim Bestellen direkt zur App kommen.
+  function karteSheetHtml() {
+    function drinks() {
+      return (CFG.bar || []).map(function (g) {
+        return '<div class="kg">' + esc(g.group) + '</div>' + g.items.map(function (d) {
+          return '<div class="kd"><b>' + esc(d.name) + '</b> <span class="kglass">' + esc(d.glass) + '</span>' +
+            '<div class="kdesc">' + esc(d.desc) + '</div></div>';
+        }).join('');
+      }).join('');
+    }
+    function menu() {
+      return (CFG.menu || []).map(function (m) {
+        return '<div class="kg">' + esc(m.group) + '</div><div class="kdesc" style="margin-bottom:6px">' +
+          esc(m.text) + '</div>';
+      }).join('');
+    }
+    return '<div class="sheet karte-sheet">' +
+      logoHtml(1.5) +
+      '<h2 class="big">' + esc(CFG.title || '') + '</h2>' +
+      '<div class="kicker">' + esc(CFG.dateLabel || '') + '</div>' +
+      '<div class="kcols">' +
+      '<div><div class="ktitle">Bar</div>' + drinks() +
+      (CFG.barFoot ? '<div class="kdesc" style="margin-top:8px">' + esc(CFG.barFoot) + '</div>' : '') + '</div>' +
+      '<div><div class="ktitle">Menü</div>' + menu() + '</div>' +
+      '</div>' +
+      '<div class="krule"></div>' +
+      '<div class="kfoot">' +
+      '<canvas class="qrc"></canvas>' +
+      '<div class="kfoot-t"><b>Fotoaufgaben: scann mich</b>' +
+      '<div class="kdesc">Aufgabe aussuchen, Foto machen, absenden. Ohne Anmeldung. ' +
+      'Alles landet im gemeinsamen Album.</div>' +
+      '<div class="kdesc" style="margin-top:4px">' + esc(guestUrl().replace(/^https?:\/\//, '')) + '</div>' +
+      '</div></div>' +
+      '</div>';
+  }
+
   function viewPrint() {
     var h = '<div class="no-print">' +
       '<button class="btn ghost" id="back" style="margin:10px 0">‹ Zurück zur App</button>' +
@@ -1137,13 +1223,14 @@
       '<div class="filters" id="pf">' +
       '<button data-m="poster" aria-pressed="' + (printCfg.mode === 'poster') + '">Aushang A4</button>' +
       '<button data-m="cards" aria-pressed="' + (printCfg.mode === 'cards') + '">Tischkarten (4 pro Seite)</button>' +
+      '<button data-m="karte" aria-pressed="' + (printCfg.mode === 'karte') + '">Bar- &amp; Menükarte mit QR</button>' +
       '</div>' +
       '<div class="row" style="margin:12px 0 18px">' +
       '<button class="btn" id="doprint">🖨 Drucken</button></div>' +
       '</div>';
     h += printCfg.mode === 'cards'
       ? '<div class="cards">' + sheetHtml(true) + sheetHtml(true) + sheetHtml(true) + sheetHtml(true) + '</div>'
-      : sheetHtml(false);
+      : printCfg.mode === 'karte' ? karteSheetHtml() : sheetHtml(false);
     h += '<footer class="mini no-print">Tipp: im Druckdialog „Hintergrundgrafiken" nicht nötig — ' +
       'der Aushang ist bewusst schwarz-weiß-tauglich.</footer>';
     view.innerHTML = h;
@@ -1205,7 +1292,9 @@
       urlWarning() +
       '<label class="f" for="gurl">Adresse, die im QR-Code steckt</label>' +
       '<input id="gurl" type="text" value="' + esc(link) + '" placeholder="https://…">' +
-      '<div class="hint">Leeren und speichern = wieder die Adresse dieser Seite verwenden.</div>' +
+      '<div class="hint">Leeren und speichern = wieder die Adresse dieser Seite verwenden.<br>' +
+      'Zugangsschlüssel dieses Fests: <code>' + esc(accessKey || '—') + '</code> · ' +
+      'Event-Kennung: <code>' + esc(CFG.eventId) + '</code></div>' +
       '<div class="qr" style="margin:12px 0"><canvas id="qrc"></canvas></div>' +
       '<div class="row" style="margin-top:12px">' +
       '<button class="btn sec2 sm" id="qrdl">QR als Bild speichern</button>' +
@@ -1658,6 +1747,13 @@
 
     if (route.name !== 'slideshow' && $('#slideshow')) leaveSlideshow();
     view.classList.toggle('hidden', route.name === 'slideshow');
+
+    if (!hasKey()) {
+      $('#tabs').classList.add('hidden');
+      $('#appHeader').classList.add('hidden');
+      viewLocked();
+      return;
+    }
 
     switch (route.name) {
       case 'start': viewStart(); break;

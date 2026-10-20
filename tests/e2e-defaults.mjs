@@ -12,6 +12,7 @@ const b = await chromium.launch();
 
 // --- Gast: frisches Geraet, nichts im Speicher, tasks.js liefert die Werte ---
 const ctx = await b.newContext({ viewport: { width: 414, height: 896 }, locale: 'de-DE' });
+await ctx.addInitScript((k) => localStorage.setItem('ep.key', JSON.stringify(k)), '7wvnlpqv');
 const g = await ctx.newPage();
 const errs = []; g.on('pageerror', e => errs.push(e.message));
 // tasks.js so ausliefern, als haette der Gastgeber die Werte eingetragen

@@ -18,7 +18,10 @@ await ctx.route('**/tasks.js', async route => {
 });
 const p = await ctx.newPage();
 const errs = []; p.on('pageerror', e => errs.push(e.message));
-await p.addInitScript(() => localStorage.setItem('ep.consent', JSON.stringify('x')));
+await p.addInitScript((k) => {
+  localStorage.setItem('ep.consent', JSON.stringify('x'));
+  localStorage.setItem('ep.key', JSON.stringify(k));
+}, '7wvnlpqv');
 
 // --- Navigation: Fussleiste ueberall ---
 for (const [hash, name] of [['#/admin', 'Gastgeber'], ['#/print', 'Aushang'], ['#/info', 'Info']]) {

@@ -16,8 +16,10 @@ await p.addInitScript(([api]) => {
     get() { return { open() { throw new Error('IndexedDB ist in diesem Modus gesperrt'); } }; },
   });
   localStorage.setItem('ep.sb', JSON.stringify({ url: api, key: 'sb_publishable_X', bucket: 'eventpic' }));
+  localStorage.setItem('ep.key', JSON.stringify('7wvnlpqv'));
   localStorage.setItem('ep.guest', JSON.stringify('Clara'));
   localStorage.setItem('ep.consent', JSON.stringify('x'));
+  localStorage.setItem('ep.key', JSON.stringify('7wvnlpqv'));
 }, [API]);
 
 await p.goto(BASE, { waitUntil: 'networkidle' });

@@ -13,7 +13,7 @@ const PIN = process.env.EP_PIN || 'Hajo86';
 const PHOTO = new URL('../icons/icon-512.png', import.meta.url).pathname;
 
 const EVENT_ID = (await import('fs')).readFileSync(new URL('../tasks.js', import.meta.url), 'utf8')
-  .match(/eventId:\s*'([^']+)'/)[1];
+  .match(/eventPrefix:\s*'([^']+)'/)[1] + '-7wvnlpqv';
 const fails = [];
 const ok = (c, m) => { console.log((c ? 'OK   ' : 'FAIL ') + m); if (!c) fails.push(m); };
 
@@ -27,6 +27,7 @@ const g1 = await ctx.newPage();
 g1.on('pageerror', e => errors.push('gast1: ' + e.message));
 await g1.addInitScript(([api, key]) => {
   localStorage.setItem('ep.sb', JSON.stringify({ url: api, key: key, bucket: 'eventpic' }));
+  localStorage.setItem('ep.key', JSON.stringify('7wvnlpqv'));
   localStorage.setItem('ep.guest', JSON.stringify('Anna'));
   localStorage.setItem('ep.consent', JSON.stringify(new Date().toISOString()));
 }, [API, KEY]);
@@ -80,6 +81,7 @@ const g2 = await ctx2.newPage();
 g2.on('pageerror', e => errors.push('gast2: ' + e.message));
 await g2.addInitScript(([api, key]) => {
   localStorage.setItem('ep.sb', JSON.stringify({ url: api, key: key, bucket: 'eventpic' }));
+  localStorage.setItem('ep.key', JSON.stringify('7wvnlpqv'));
   localStorage.setItem('ep.guest', JSON.stringify('Bernd'));
   localStorage.setItem('ep.consent', JSON.stringify(new Date().toISOString()));
 }, [API, KEY]);

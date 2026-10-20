@@ -22,6 +22,7 @@ const p = await ctx.newPage();
 const errs = []; p.on('pageerror', e => errs.push(e.message));
 await p.addInitScript(() => {
   localStorage.setItem('ep.consent', JSON.stringify('x'));
+  localStorage.setItem('ep.key', JSON.stringify('7wvnlpqv'));
   localStorage.setItem('ep.guest', JSON.stringify('Frieda'));
 });
 

@@ -251,6 +251,22 @@ footer.mini{color:var(--muted);font-size:.75rem;text-align:center;padding:24px 0
 .cards .sheet canvas{width:34mm}
 .cards .sheet ol{font-size:.78rem;max-width:none;padding-left:18px}
 .cards .sheet .url{font-size:.65rem;margin:6px 0 8px}
+/* ---------- Bar- und Menükarte zum Drucken ---------- */
+.karte-sheet{text-align:center}
+.karte-sheet .kcols{display:grid;grid-template-columns:1fr 1fr;gap:18px;text-align:left;margin-top:14px}
+.karte-sheet .ktitle{font-weight:800;letter-spacing:.22em;text-transform:uppercase;font-size:.72rem;
+  border-bottom:1px solid #ddd;padding-bottom:5px;margin-bottom:8px}
+.karte-sheet .kg{font-weight:700;font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;
+  color:#8a6c12;margin:9px 0 3px}
+.karte-sheet .kd{margin:0 0 5px}
+.karte-sheet .kd b{font-size:.9rem}
+.karte-sheet .kglass{font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:#8a6c12}
+.karte-sheet .kdesc{font-size:.75rem;color:#444;line-height:1.35}
+.karte-sheet .krule{height:1px;background:#ddd;margin:16px 0 12px}
+.karte-sheet .kfoot{display:flex;gap:14px;align-items:center;text-align:left}
+.karte-sheet .kfoot canvas{width:28mm;height:auto;flex:0 0 auto;image-rendering:pixelated}
+.karte-sheet .kfoot-t{flex:1;min-width:0}
+
 @media print{
   @page{size:A4;margin:12mm}
   header.app,nav.tabs,.no-print,.toast{display:none !important}
@@ -266,6 +282,12 @@ footer.mini{color:var(--muted);font-size:.75rem;text-align:center;padding:24px 0
   .sheet.poster ol{font-size:13pt;max-width:110mm}
   .sheet.poster .save{font-size:10.5pt;max-width:120mm;padding:4mm}
   .cards .sheet .save{font-size:7.5pt;max-width:none;padding:2.5mm;margin-top:3mm}
+  @page{size:A4;margin:12mm}
+  .karte-sheet{padding:0}
+  .karte-sheet .kcols{gap:10mm}
+  .karte-sheet .kd b{font-size:11pt}
+  .karte-sheet .kdesc{font-size:9pt}
+  .karte-sheet .kfoot canvas{width:32mm}
   .cards{gap:8mm}
   .cards .sheet{border:1px dashed #bbb;padding:6mm;min-height:118mm;
     display:flex;flex-direction:column;justify-content:center}

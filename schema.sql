@@ -51,10 +51,15 @@ create index if not exists event_photos_created_idx
 -- ---------------------------------------------------------------------------
 alter table public.event_photos enable row level security;
 
+-- Direktes Lesen der Tabelle bleibt auf das alte Fest beschraenkt. Alle
+-- weiteren Feste werden ueber die Funktionen weiter unten gelesen: Ohne die
+-- (unratbare) Event-Kennung gibt der Server nichts heraus. Die Kennung steht
+-- nicht im oeffentlichen Quelltext, sondern entsteht erst aus dem Schluessel
+-- in der Adresse (…/#k=SCHLUESSEL).
 drop policy if exists "eventpic anon liest sichtbare fotos" on public.event_photos;
 create policy "eventpic anon liest sichtbare fotos"
   on public.event_photos for select to anon
-  using (hidden = false);
+  using (hidden = false and event_id = 'thomas60-2026');
 
 drop policy if exists "eventpic anon darf einfuegen" on public.event_photos;
 create policy "eventpic anon darf einfuegen"
@@ -88,6 +93,8 @@ on conflict (event_id) do nothing;
 -- ---------------------------------------------------------------------------
 
 -- 4a. Gast löscht sein eigenes Foto (nur mit passendem owner_token)
+drop function if exists public.ep_list_photos(text, integer);
+drop function if exists public.ep_list_mine(text, text);
 drop function if exists public.ep_delete_own_photo(uuid, text);
 create or replace function public.ep_delete_own_photo(p_id uuid, p_token text)
 returns integer
@@ -174,11 +181,49 @@ begin
 end;
 $$;
 
+-- 4f. Galerie eines Fests lesen — nur mit der richtigen Event-Kennung
+create or replace function public.ep_list_photos(p_event text, p_limit integer default 400)
+returns table (
+  id uuid, event_id text, task_id text, guest_name text, caption text,
+  path text, width integer, height integer, created_at timestamptz, hidden boolean
+)
+language sql
+security definer
+set search_path = public, pg_temp
+as $$
+  select p.id, p.event_id, p.task_id, p.guest_name, p.caption,
+         p.path, p.width, p.height, p.created_at, p.hidden
+  from public.event_photos p
+  where p.event_id = p_event
+    and p.hidden = false
+    and char_length(p_event) >= 8      -- schützt vor Rateversuchen mit Kurznamen
+  order by p.created_at desc
+  limit least(greatest(coalesce(p_limit, 400), 1), 1000);
+$$;
+
+-- 4g. Die eigenen Fotos eines Gasts (Grundlage der Häkchen)
+create or replace function public.ep_list_mine(p_event text, p_token text)
+returns setof public.event_photos
+language sql
+security definer
+set search_path = public, pg_temp
+as $$
+  select * from public.event_photos
+  where event_id = p_event
+    and owner_token = p_token
+    and char_length(p_event) >= 8
+    and char_length(p_token) >= 8
+  order by created_at desc
+  limit 400;
+$$;
+
 -- Rechte: nur diese Funktionen sind für die App erreichbar
 revoke all on function public.ep_delete_own_photo(uuid, text)         from public;
 revoke all on function public.ep_admin_list(text, text)               from public;
 revoke all on function public.ep_admin_set_hidden(text, uuid, boolean) from public;
 revoke all on function public.ep_admin_delete(text, uuid)             from public;
+grant execute on function public.ep_list_photos(text, integer)            to anon;
+grant execute on function public.ep_list_mine(text, text)                 to anon;
 grant execute on function public.ep_delete_own_photo(uuid, text)          to anon;
 grant execute on function public.ep_admin_list(text, text)                to anon;
 grant execute on function public.ep_admin_set_hidden(text, uuid, boolean) to anon;
@@ -222,8 +267,8 @@ with checks(pruefung, ok) as (
     ('3. Policies für anon (lesen + einfügen)',
       (select count(*) >= 2 from pg_policies
         where schemaname = 'public' and tablename = 'event_photos')),
-    ('4. Die vier ep_-Funktionen',
-      (select count(*) = 4 from information_schema.routines
+    ('4. Die sechs ep_-Funktionen',
+      (select count(*) = 6 from information_schema.routines
         where routine_schema = 'public' and routine_name like 'ep!_%' escape '!')),
     ('5. Öffentlicher Storage-Bucket "eventpic"',
       (select count(*) = 1 from storage.buckets where id = 'eventpic' and public)),

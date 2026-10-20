@@ -108,6 +108,18 @@ const server = createServer(async (req, res) => {
       if (a.p_pin !== PIN) { json(res, 400, { message: 'PIN falsch' }); return false; }
       return true;
     };
+    if (fn === 'ep_list_photos') {
+      if (!a.p_event || a.p_event.length < 8) return json(res, 200, []);
+      const out = rows.filter(r => r.event_id === a.p_event && !r.hidden)
+        .sort((x, y) => (x.created_at < y.created_at ? 1 : -1))
+        .slice(0, a.p_limit || 400)
+        .map(r => { const o = { ...r }; delete o.owner_token; return o; });
+      return json(res, 200, out);
+    }
+    if (fn === 'ep_list_mine') {
+      if (!a.p_event || a.p_event.length < 8 || !a.p_token || a.p_token.length < 8) return json(res, 200, []);
+      return json(res, 200, rows.filter(r => r.event_id === a.p_event && r.owner_token === a.p_token));
+    }
     if (fn === 'ep_delete_own_photo') {
       const i = rows.findIndex(r => r.id === a.p_id && r.owner_token === a.p_token);
       if (i >= 0) rows.splice(i, 1);

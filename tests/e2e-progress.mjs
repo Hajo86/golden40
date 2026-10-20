@@ -6,7 +6,7 @@ const BASE = process.env.EP_BASE || 'http://127.0.0.1:8199/';
 const API = process.env.EP_API || 'http://127.0.0.1:8300';
 const PIN = process.env.EP_PIN || 'Hajo86';
 const EVENT_ID = (await import('fs')).readFileSync(new URL('../tasks.js', import.meta.url), 'utf8')
-  .match(/eventId:\s*'([^']+)'/)[1];
+  .match(/eventPrefix:\s*'([^']+)'/)[1] + '-7wvnlpqv';
 const fails = [];
 const ok = (c, m) => { console.log((c ? 'OK   ' : 'FAIL ') + m); if (!c) fails.push(m); };
 
@@ -24,6 +24,7 @@ const p = await ctx.newPage();
 const errs = []; p.on('pageerror', e => errs.push(e.message));
 await p.addInitScript(() => {
   localStorage.setItem('ep.consent', JSON.stringify('x'));
+  localStorage.setItem('ep.key', JSON.stringify('7wvnlpqv'));
   localStorage.setItem('ep.guest', JSON.stringify('Heidi'));
 });
 
