@@ -1,0 +1,271 @@
+-- ===========================================================================
+--  eventpic — Supabase-Setup
+--  Einmal komplett in den SQL-Editor von Supabase einfügen und ausführen.
+--  Projekt-Region: EU (Frankfurt) wählen.
+--
+--  Alle Objekte sind mit "event_" / "ep_" / "eventpic" benannt, damit dieses
+--  Schema neben einer bestehenden Datenbank (z.B. der RSS-Akquise mit ihrer
+--  Tabelle "leads" und dem Bucket "lead-photos") laufen kann, ohne etwas
+--  anzufassen. Es wird nichts gelöscht und keine fremde Policy verändert.
+--
+--  ‼️  DU MUSST GENAU EINE ZEILE ÄNDERN: suche unten nach BITTE-AENDERN
+--      und trage dort deine Admin-PIN ein. Sonst alles einfach ausführen.
+--
+--  ACHTUNG, bevor du dieses Schema in ein BESTEHENDES Projekt legst:
+--  Der Anon-Key steckt bei jedem Partygast im Browser. Er gilt für das ganze
+--  Projekt. Wenn in derselben Datenbank Tabellen mit offenen Policies liegen
+--  (bei der RSS-App ist "leads" per "using (true)" für anon voll lesbar UND
+--  schreibbar), bekäme jeder Gast damit Zugriff darauf. Für das Fest deshalb
+--  ein EIGENES, zweites Supabase-Projekt anlegen — ist kostenlos.
+-- ===========================================================================
+
+-- ---------------------------------------------------------------------------
+-- 1. Tabelle
+-- ---------------------------------------------------------------------------
+create table if not exists public.event_photos (
+  id          uuid primary key default gen_random_uuid(),
+  event_id    text        not null,
+  task_id     text        not null,
+  guest_name  text,
+  caption     text,
+  path        text        not null,          -- Pfad im Storage-Bucket
+  owner_token text        not null,          -- anonyme Gerätekennung (für "eigenes Foto löschen")
+  width       integer,
+  height      integer,
+  hidden      boolean     not null default false,
+  created_at  timestamptz not null default now(),
+  constraint caption_len   check (caption is null or char_length(caption) <= 140),
+  constraint guest_len     check (guest_name is null or char_length(guest_name) <= 24),
+  constraint task_len      check (char_length(task_id) between 1 and 24),
+  constraint path_len      check (char_length(path) between 1 and 300),
+  constraint token_len     check (char_length(owner_token) between 8 and 64)
+);
+
+create index if not exists event_photos_created_idx
+  on public.event_photos (event_id, created_at desc);
+
+-- ---------------------------------------------------------------------------
+-- 2. Row Level Security
+--    anon darf: lesen (nur sichtbare) + einfügen.
+--    anon darf NICHT: ändern oder löschen — das läuft über die Funktionen unten.
+-- ---------------------------------------------------------------------------
+alter table public.event_photos enable row level security;
+
+drop policy if exists "eventpic anon liest sichtbare fotos" on public.event_photos;
+create policy "eventpic anon liest sichtbare fotos"
+  on public.event_photos for select to anon
+  using (hidden = false);
+
+drop policy if exists "eventpic anon darf einfuegen" on public.event_photos;
+create policy "eventpic anon darf einfuegen"
+  on public.event_photos for insert to anon
+  with check (hidden = false);
+
+-- ---------------------------------------------------------------------------
+-- 3. Admin-PIN (liegt in einem Schema, das die REST-API NICHT ausliefert)
+-- ---------------------------------------------------------------------------
+create schema if not exists eventpic_private;
+revoke all on schema eventpic_private from anon, authenticated;
+
+create table if not exists eventpic_private.admin (
+  event_id text primary key,
+  pin      text not null
+);
+
+-- >>> PIN HIER ÄNDERN <<<
+-- "do nothing": Eine bereits gesetzte PIN wird beim erneuten Ausführen des
+-- Skripts NICHT überschrieben. Zum Setzen/Ändern Abschnitt 8 nutzen.
+insert into eventpic_private.admin (event_id, pin)
+values ('thomas60-2026', 'BITTE-AENDERN-0000')
+on conflict (event_id) do nothing;
+
+-- ---------------------------------------------------------------------------
+-- 4. Funktionen
+--    Jeweils mit "drop function if exists" davor: "create or replace" allein
+--    scheitert, sobald sich der Rückgabetyp einer bereits vorhandenen Funktion
+--    ändert (Postgres: 42P13 "cannot change return type"). Die Rechte werden
+--    unten neu erteilt, das Löschen ist also gefahrlos.
+-- ---------------------------------------------------------------------------
+
+-- 4a. Gast löscht sein eigenes Foto (nur mit passendem owner_token)
+drop function if exists public.ep_delete_own_photo(uuid, text);
+create or replace function public.ep_delete_own_photo(p_id uuid, p_token text)
+returns integer
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare n integer;
+begin
+  if p_token is null or char_length(p_token) < 8 then
+    raise exception 'ungueltiges Token';
+  end if;
+  delete from public.event_photos where id = p_id and owner_token = p_token;
+  get diagnostics n = row_count;
+  return n;
+end;
+$$;
+
+-- 4b. PIN-Prüfung
+drop function if exists eventpic_private.pin_ok(text, text);
+create or replace function eventpic_private.pin_ok(p_pin text, p_event text)
+returns boolean
+language sql
+security definer
+set search_path = eventpic_private, pg_temp
+as $$
+  select exists (
+    select 1 from eventpic_private.admin
+    where pin = p_pin and (p_event is null or event_id = p_event)
+  );
+$$;
+
+-- 4c. Admin: alle Fotos inklusive verborgener
+drop function if exists public.ep_admin_list(text, text);
+create or replace function public.ep_admin_list(p_pin text, p_event text)
+returns setof public.event_photos
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if not eventpic_private.pin_ok(p_pin, p_event) then raise exception 'PIN falsch'; end if;
+  return query
+    select * from public.event_photos
+    where event_id = p_event
+    order by created_at desc;
+end;
+$$;
+
+-- 4d. Admin: Foto verbergen / wieder zeigen
+drop function if exists public.ep_admin_set_hidden(text, uuid, boolean);
+create or replace function public.ep_admin_set_hidden(p_pin text, p_id uuid, p_hidden boolean)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if not eventpic_private.pin_ok(p_pin, null) then raise exception 'PIN falsch'; end if;
+  update public.event_photos set hidden = p_hidden where id = p_id;
+end;
+$$;
+
+-- 4e. Admin: Foto löschen.
+--     Löscht die Datenbankzeile — damit ist das Foto aus Galerie, Slideshow
+--     und Download verschwunden. Die Bilddatei im Storage wird NICHT von hier
+--     gelöscht: Supabase verbietet das direkte Löschen in storage.objects
+--     ("Direct deletion from storage tables is not allowed"). Die App versucht
+--     anschließend die Storage-API; klappt das nicht, bleibt die Datei bis zum
+--     Aufräumen nach dem Fest liegen (siehe Abschnitt 9).
+drop function if exists public.ep_admin_delete(text, uuid);
+create or replace function public.ep_admin_delete(p_pin text, p_id uuid)
+returns text
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare p text;
+begin
+  if not eventpic_private.pin_ok(p_pin, null) then raise exception 'PIN falsch'; end if;
+  select path into p from public.event_photos where id = p_id;
+  delete from public.event_photos where id = p_id;
+  return p;
+end;
+$$;
+
+-- Rechte: nur diese Funktionen sind für die App erreichbar
+revoke all on function public.ep_delete_own_photo(uuid, text)         from public;
+revoke all on function public.ep_admin_list(text, text)               from public;
+revoke all on function public.ep_admin_set_hidden(text, uuid, boolean) from public;
+revoke all on function public.ep_admin_delete(text, uuid)             from public;
+grant execute on function public.ep_delete_own_photo(uuid, text)          to anon;
+grant execute on function public.ep_admin_list(text, text)                to anon;
+grant execute on function public.ep_admin_set_hidden(text, uuid, boolean) to anon;
+grant execute on function public.ep_admin_delete(text, uuid)              to anon;
+
+-- ---------------------------------------------------------------------------
+-- 5. Storage
+-- ---------------------------------------------------------------------------
+insert into storage.buckets (id, name, public)
+values ('eventpic', 'eventpic', true)
+on conflict (id) do update set public = true;
+
+drop policy if exists "eventpic lesen" on storage.objects;
+create policy "eventpic lesen"
+  on storage.objects for select
+  using (bucket_id = 'eventpic');
+
+drop policy if exists "eventpic hochladen" on storage.objects;
+create policy "eventpic hochladen"
+  on storage.objects for insert to anon
+  with check (bucket_id = 'eventpic');
+
+-- ---------------------------------------------------------------------------
+-- 6. PostgREST-Schemacache neu laden
+--    Ohne das kennt die REST-API die neuen Funktionen evtl. erst nach ein paar
+--    Minuten und antwortet vorher mit "Could not find the function".
+-- ---------------------------------------------------------------------------
+notify pgrst, 'reload schema';
+
+-- ---------------------------------------------------------------------------
+-- 7. Selbsttest — muss sechsmal ✅ ergeben
+--    (Diesen Block darfst du jederzeit erneut allein ausführen.)
+-- ---------------------------------------------------------------------------
+with checks(pruefung, ok) as (
+  values
+    ('1. Tabelle public.event_photos',
+      (select count(*) = 1 from information_schema.tables
+        where table_schema = 'public' and table_name = 'event_photos')),
+    ('2. Row Level Security aktiv',
+      (select relrowsecurity from pg_class where oid = 'public.event_photos'::regclass)),
+    ('3. Policies für anon (lesen + einfügen)',
+      (select count(*) >= 2 from pg_policies
+        where schemaname = 'public' and tablename = 'event_photos')),
+    ('4. Die vier ep_-Funktionen',
+      (select count(*) = 4 from information_schema.routines
+        where routine_schema = 'public' and routine_name like 'ep!_%' escape '!')),
+    ('5. Öffentlicher Storage-Bucket "eventpic"',
+      (select count(*) = 1 from storage.buckets where id = 'eventpic' and public)),
+    -- Absichtlich 'BITTE%' statt der vollen Zeichenkette: Wer die PIN oben per
+    -- Suchen-und-Ersetzen einträgt, erwischt sonst auch diese Prüfzeile — dann
+    -- meldet der Test fälschlich einen Fehler, obwohl die PIN richtig gesetzt ist.
+    ('6. Admin-PIN gesetzt (sonst Abschnitt 8 ausführen)',
+      (select count(*) = 1 from eventpic_private.admin
+        where event_id = 'thomas60-2026'
+          and pin is not null and pin not ilike 'BITTE%' and char_length(pin) >= 4))
+)
+select case when ok then '✅ ok' else '❌ FEHLT' end as status, pruefung
+from checks
+order by ok, pruefung;
+
+-- Zur Kontrolle: so lautet die gespeicherte PIN. Genau diese musst du in der
+-- App eingeben — auf Groß-/Kleinschreibung und Leerzeichen achten.
+select event_id, pin as gespeicherte_pin from eventpic_private.admin;
+
+-- ---------------------------------------------------------------------------
+-- 8. Admin-PIN setzen oder ändern
+--    Diesen Block kannst du jederzeit ALLEIN ausführen. Er ist der einzige
+--    Weg, die PIN zu ändern — das große Skript oben rührt eine bereits
+--    gesetzte PIN nicht mehr an.
+-- ---------------------------------------------------------------------------
+insert into eventpic_private.admin (event_id, pin)
+values ('thomas60-2026', 'BITTE-AENDERN-0000')      -- <<< hier die PIN eintragen
+on conflict (event_id) do update set pin = excluded.pin;
+
+select event_id, pin from eventpic_private.admin;    -- zeigt, was wirklich drinsteht
+
+-- ---------------------------------------------------------------------------
+-- 9. Nach dem Fest: aufräumen (bewusst manuell)
+-- ---------------------------------------------------------------------------
+-- Erst die Fotos herunterladen (Admin-Bereich → "Alle Fotos als ZIP").
+--
+-- Dann die Datenbankzeilen:
+--   delete from public.event_photos where event_id = 'thomas60-2026';
+--
+-- Die Bilddateien lassen sich per SQL NICHT löschen. Zwei Wege:
+--   a) Supabase → Storage → Bucket "eventpic" → Ordner auswählen → Delete
+--   b) Den ganzen Bucket löschen (Storage → eventpic → Einstellungen → Delete)
+--
+-- Am einfachsten: das gesamte Supabase-Projekt löschen, wenn es nur für
+-- dieses Fest angelegt wurde.
