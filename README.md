@@ -100,6 +100,19 @@ nur auf dem Gerät. So kannst du sie in Ruhe ausprobieren.
 > lesbar *und* schreibbar — jeder Gast mit dem QR-Code hätte damit Zugriff auf den
 > kompletten Lead-Pool. Ein getrenntes Projekt löst das sauber und kostet nichts.
 
+
+## Drinks vorbestellen (optional, Gag-Modus)
+
+Schalter `ordering: true` in `tasks.js`. Dann hat jeder Drink auf der Karte einen
+Knopf „Bestellen“ (Name wird einmal gefragt, Wunsch optional). Die Bar sieht die
+Bestellungen unter **`#/bar`** (Gäste-Link öffnen, dann `#/bar` anhängen, Admin-PIN
+eingeben, einmal „Ton testen“ tippen, damit der Browser Ton erlaubt): neue
+Bestellungen blinken golden und pingen, „Fertig“ meldet dem Gast per Hinweis,
+Ping und Vibration „abholen“. Bildschirm bleibt an (Wake Lock).
+Datenbank: Tabelle `event_orders` + Funktionen `ep_orders_mine`, `ep_order_cancel`,
+`ep_bar_list`, `ep_bar_set_status` (SQL im Supabase-Projekt eingespielt am 23.10.2026;
+Schema siehe Commit „Drinks per App vorbestellen“). Mit `ordering: false` verschwindet alles.
+
 ### 3 · App verbinden und testen
 
 **Die Zugangsdaten gehören in [`tasks.js`](tasks.js), nicht in den Admin-Bereich.**
