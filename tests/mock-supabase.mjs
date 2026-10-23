@@ -8,6 +8,8 @@ import { createServer } from 'http';
 
 const PORT = Number(process.argv[2]) || 8300;
 const REJECT_AUTH = process.argv.includes('--reject-auth');
+// Simuliert eine Datenbank, in der die neuen Lese-Funktionen noch fehlen.
+const NO_LIST_FN = process.argv.includes('--no-list-fn');
 const PIN = process.env.EP_PIN || 'Hajo86';
 
 const rows = [];                 // Datenbankzeilen
@@ -108,6 +110,12 @@ const server = createServer(async (req, res) => {
       if (a.p_pin !== PIN) { json(res, 400, { message: 'PIN falsch' }); return false; }
       return true;
     };
+    if ((fn === 'ep_list_photos' || fn === 'ep_list_mine') && NO_LIST_FN) {
+      return json(res, 404, {
+        code: 'PGRST202',
+        message: 'Could not find the function public.' + fn + ' in the schema cache',
+      });
+    }
     if (fn === 'ep_list_photos') {
       if (!a.p_event || a.p_event.length < 8) return json(res, 200, []);
       const out = rows.filter(r => r.event_id === a.p_event && !r.hidden)

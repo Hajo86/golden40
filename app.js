@@ -223,18 +223,57 @@
     });
   }
   var api = {
+    // Gelesen wird bevorzugt über die Funktionen ep_list_photos/ep_list_mine:
+    // die verlangen die vollständige Event-Kennung, geben also ohne den
+    // Zugangsschlüssel nichts heraus. Fehlen sie in der Datenbank, liest die
+    // App direkt aus der Tabelle weiter — dann funktioniert alles, nur der
+    // zusätzliche Schutz der Funktionen fehlt. Sobald sie angelegt sind,
+    // schaltet die App beim nächsten Abruf von selbst um.
+    //   null = noch nicht ausprobiert, true = Funktionen da, false = ohne
+    useRpc: null,
+    _noFn: function (e) {
+      var m = (e && e.message) || '';
+      return /PGRST202|could not find the function|does not exist|404/i.test(m);
+    },
     // owner_token wird bewusst NICHT mitgeladen: er ist der Schlüssel, mit dem
     // ein Gast sein eigenes Foto löschen darf, und hat in der Galerie aller
     // Gäste nichts zu suchen.
+    listDirect: function (limit) {
+      var q = '/rest/v1/event_photos?select=' +
+        'id,event_id,task_id,guest_name,caption,path,width,height,created_at,hidden' +
+        '&event_id=eq.' + encodeURIComponent(CFG.eventId) +
+        '&hidden=is.false&order=created_at.desc&limit=' + (limit || 400);
+      return sbFetch(q, { headers: sbHeaders() });
+    },
+    mineDirect: function () {
+      var q = '/rest/v1/event_photos?select=*&event_id=eq.' + encodeURIComponent(CFG.eventId) +
+        '&owner_token=eq.' + encodeURIComponent(ownerToken) +
+        '&order=created_at.desc&limit=400';
+      return sbFetch(q, { headers: sbHeaders() });
+    },
     list: function (limit) {
-      return this.rpc('ep_list_photos', { p_event: CFG.eventId, p_limit: limit || 400 })
-        .then(function (r) { return r || []; });
+      var self = this;
+      if (self.useRpc === false) return self.listDirect(limit);
+      return self.rpc('ep_list_photos', { p_event: CFG.eventId, p_limit: limit || 400 })
+        .then(function (r) { self.useRpc = true; return r || []; })
+        .catch(function (e) {
+          if (!self._noFn(e)) throw e;
+          self.useRpc = false;
+          return self.listDirect(limit);
+        });
     },
     // Die eigenen Fotos — daraus wird der Fortschritt berechnet. Damit stimmt
     // er auch dann noch, wenn der Gastgeber Fotos gelöscht hat.
     mine: function () {
-      return this.rpc('ep_list_mine', { p_event: CFG.eventId, p_token: ownerToken })
-        .then(function (r) { return r || []; });
+      var self = this;
+      if (self.useRpc === false) return self.mineDirect();
+      return self.rpc('ep_list_mine', { p_event: CFG.eventId, p_token: ownerToken })
+        .then(function (r) { return r || []; })
+        .catch(function (e) {
+          if (!self._noFn(e)) throw e;
+          self.useRpc = false;
+          return self.mineDirect();
+        });
     },
     insert: function (row) {
       return sbFetch('/rest/v1/event_photos', {
