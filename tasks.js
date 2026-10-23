@@ -82,7 +82,7 @@ window.EVENT = {
       { name: 'Fako Royale', glass: 'Coupe', desc: 'Korn, Orangensorbet, Champagner' },
     ] },
     { group: 'Ohne Alkohol', items: [
-      { name: 'Basil Limo', glass: 'Tumbler', desc: 'Basilikum, Zitrone, Soda' },
+      { name: 'Green Light', glass: 'Tumbler', desc: 'Basilikum, Zitrone, Soda' },
       { name: 'Red Light Zero', glass: 'Longdrink', desc: 'Erdbeere, Rosmarin, Zitrone, Tonic' },
       { name: 'Spritz Zero', glass: 'Weinglas', desc: 'Crodino, alkoholfreier Sekt, Orange' },
     ] },
