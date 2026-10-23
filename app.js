@@ -294,8 +294,9 @@
           return self.mineDirect();
         });
     },
-    insert: function (row) {
-      return sbFetch('/rest/v1/event_photos', {
+    insert: function (path, row) {
+      if (row === undefined) { row = path; path = '/rest/v1/event_photos'; }
+      return sbFetch(path, {
         method: 'POST',
         headers: sbHeaders({ 'Content-Type': 'application/json', Prefer: 'return=representation' }),
         body: JSON.stringify(row),
@@ -1201,10 +1202,17 @@
         '<div class="card" style="padding:4px 14px">' + g.items.map(function (d) {
           return '<div class="drink"><div class="g"><div class="n">' + esc(d.name) + '</div>' +
             '<div class="m">' + esc(d.desc) + '</div></div>' +
-            '<div class="glass">' + esc(d.glass) + '</div></div>';
+            '<div class="glass">' + esc(d.glass) + '</div>' +
+            (orderingOn() ? '<button class="ord" data-drink="' + esc(d.name) + '">Bestellen</button>' : '') +
+            '</div>';
         }).join('') + '</div>';
     });
     if (CFG.barFoot) h += '<div class="hint">' + esc(CFG.barFoot) + '</div>';
+    if (orderingOn()) {
+      h += '<div class="sec" style="margin-top:18px"><h2>🛎️ Deine Bestellungen</h2></div>' +
+        '<div class="hint">Tipp auf „Bestellen“, und es blinkt bei der Barkeeperin auf. Abholen an der Bar.</div>' +
+        '<div id="ordlist" class="ordlist"></div>';
+    }
 
     h += '<div class="sec" style="margin-top:26px"><h2>🔥 Menü</h2></div>';
     (CFG.menu || []).forEach(function (m) {
@@ -1214,6 +1222,165 @@
     h += '<div class="sec" style="margin-top:26px"><h2>✳ Der Abend</h2></div>' + programHtml(true);
     h += '<footer class="mini">' + esc(CFG.hashtag || '') + ' · <a href="#/info">Info</a></footer>';
     view.innerHTML = h;
+    if (orderingOn()) {
+      Array.prototype.forEach.call(view.querySelectorAll('.ord'), function (b) {
+        b.onclick = function () { orderDrink(b.dataset.drink, b); };
+      });
+      loadMyOrders();
+      ordersTimer = setInterval(function () {
+        if (route.name !== 'karte') { clearInterval(ordersTimer); return; }
+        loadMyOrders();
+      }, 8000);
+    }
+  }
+
+  /* ======================= 11b. Drinks bestellen (Gag) =================== */
+  var ordersTimer = null, myOrders = [];
+  function orderingOn() { return !!CFG.ordering && !!SB.url && hasKey(); }
+
+  function orderDrink(drink, btn) {
+    if (!guest) {
+      var n = prompt('Wie heißt du? (damit die Bar weiß, für wen)', '');
+      if (n == null) return;
+      guest = n.trim().slice(0, 24); lsSet(LS.guest, guest);
+      if (!guest) { toast('Ohne Namen keine Bestellung.'); return; }
+    }
+    var note = prompt(drink + ' bestellen für ' + guest + '.\nWunsch dazu? (z. B. „ohne Eis“, sonst leer lassen)', '');
+    if (note == null) return;
+    if (btn) btn.disabled = true;
+    api.insert('/rest/v1/event_orders', {
+      event_id: CFG.eventId, guest_name: guest, drink: drink,
+      note: note.trim().slice(0, 80) || null, owner_token: ownerToken,
+    }).then(function () {
+      toast('🛎️ ' + drink + ' bestellt – blinkt jetzt an der Bar.');
+      loadMyOrders();
+    }).catch(function (e) {
+      toast('Bestellung ging nicht raus: ' + e.message, 4000);
+    }).then(function () { if (btn) btn.disabled = false; });
+  }
+
+  function loadMyOrders() {
+    var host = $('#ordlist'); if (!host) return;
+    api.rpc('ep_orders_mine', { p_event: CFG.eventId, p_token: ownerToken }).then(function (rows) {
+      myOrders = rows || [];
+      renderMyOrders();
+    }).catch(function () {});
+  }
+
+  function renderMyOrders() {
+    var host = $('#ordlist'); if (!host) return;
+    if (!myOrders.length) { host.innerHTML = '<div class="hint">Noch nichts bestellt.</div>'; return; }
+    var label = { open: 'In Arbeit', done: 'Fertig – abholen!', cancelled: 'Storniert' };
+    host.innerHTML = '<div class="list">' + myOrders.map(function (o) {
+      return '<div class="it"><div class="g"><div class="t">' + esc(o.drink) + '</div>' +
+        '<div class="m">' + (o.note ? esc(o.note) + ' · ' : '') + relTime(o.created_at) + '</div></div>' +
+        '<span class="st ' + esc(o.status) + '">' + (label[o.status] || o.status) + '</span>' +
+        (o.status === 'open' ? '<button class="x" data-id="' + o.id + '" title="Stornieren">✕</button>' : '') +
+        '</div>';
+    }).join('') + '</div>';
+    Array.prototype.forEach.call(host.querySelectorAll('.x'), function (b) {
+      b.onclick = function () {
+        api.rpc('ep_order_cancel', { p_id: b.dataset.id, p_token: ownerToken }).then(function () {
+          toast('Storniert.'); loadMyOrders();
+        }).catch(function (e) { toast('Ging nicht: ' + e.message); });
+      };
+    });
+  }
+
+  /* ---- Bar-Ansicht (iPad an der Theke): #/bar ---- */
+  var bar = { timer: null, seen: {}, first: true, lock: null, rows: [] };
+  function viewBar() {
+    var pin = lsGet(LS.pin, '');
+    if (!pin) {
+      view.innerHTML = '<div class="bar"><div class="sec"><h2>🍸 Bar-Ansicht</h2></div>' +
+        '<div class="card" style="padding:16px"><label class="f">Admin-PIN (dieselbe wie im Gastgeber-Bereich)</label>' +
+        '<input id="bpin" type="password" placeholder="PIN"><div class="row" style="margin-top:12px">' +
+        '<button class="btn" id="bgo">Bar öffnen</button></div></div></div>';
+      $('#bgo').onclick = function () {
+        var p = ($('#bpin').value || '').trim(); if (!p) return;
+        lsSet(LS.pin, p); render();
+      };
+      return;
+    }
+    view.innerHTML = '<div class="bar"><div class="top"><h2>🍸 Bestellungen</h2>' +
+      '<span class="cnt" id="bcnt">–</span>' +
+      '<button class="btn sm sec2" id="bsound">🔔 Ton testen</button></div>' +
+      '<div class="grid" id="bgrid"><div class="empty">Lade …</div></div>' +
+      '<div class="hint" style="margin-top:16px">Aktualisiert alle 5 Sekunden. Neue Bestellungen blinken und pingen. ' +
+      '„Fertig“ meldet dem Gast: abholen. <a href="#/admin">Gastgeber-Bereich</a></div></div>';
+    $('#bsound').onclick = function () { ping(); toast('Ping!'); };
+    if (navigator.wakeLock && navigator.wakeLock.request) {
+      navigator.wakeLock.request('screen').then(function (l) { bar.lock = l; }).catch(function () {});
+    }
+    bar.first = true; bar.seen = {};
+    loadBar();
+    clearInterval(bar.timer);
+    bar.timer = setInterval(function () {
+      if (route.name !== 'bar') { clearInterval(bar.timer); if (bar.lock) { try { bar.lock.release(); } catch (e) {} } return; }
+      loadBar();
+    }, 5000);
+  }
+
+  function loadBar() {
+    api.rpc('ep_bar_list', { p_pin: lsGet(LS.pin, ''), p_event: CFG.eventId }).then(function (rows) {
+      bar.rows = rows || [];
+      var fresh = [];
+      bar.rows.forEach(function (o) {
+        if (o.status === 'open' && !bar.seen[o.id]) { bar.seen[o.id] = true; if (!bar.first) fresh.push(o.id); }
+      });
+      bar.first = false;
+      renderBar(fresh);
+      if (fresh.length) ping();
+    }).catch(function (e) {
+      var g = $('#bgrid');
+      if (/PIN falsch/.test(e.message)) { lsSet(LS.pin, ''); render(); return; }
+      if (g) g.innerHTML = '<div class="empty">Keine Verbindung: ' + esc(e.message) + '</div>';
+    });
+  }
+
+  function renderBar(fresh) {
+    var g = $('#bgrid'); if (!g) return;
+    var open = bar.rows.filter(function (o) { return o.status === 'open'; });
+    $('#bcnt').textContent = open.length + ' offen';
+    if (!bar.rows.length) { g.innerHTML = '<div class="empty">Noch keine Bestellungen. 🍸</div>'; return; }
+    g.innerHTML = bar.rows.map(function (o) {
+      var isNew = fresh.indexOf(o.id) >= 0;
+      return '<div class="o ' + o.status + (isNew ? ' new' : '') + '">' +
+        '<div class="d">' + esc(o.drink) + '</div>' +
+        '<div class="w">für ' + esc(o.guest_name || 'Anonym') + '</div>' +
+        (o.note ? '<div class="n">' + esc(o.note) + '</div>' : '') +
+        '<div class="t">' + relTime(o.created_at) + (o.status === 'done' ? ' · fertig' : '') + '</div>' +
+        (o.status === 'open'
+          ? '<button class="btn" data-id="' + o.id + '" data-st="done">✓ Fertig</button>'
+          : '<button class="btn sm ghost" data-id="' + o.id + '" data-st="open">zurück auf offen</button>') +
+        '</div>';
+    }).join('');
+    Array.prototype.forEach.call(g.querySelectorAll('button[data-st]'), function (b) {
+      b.onclick = function () {
+        b.disabled = true;
+        api.rpc('ep_bar_set_status', { p_pin: lsGet(LS.pin, ''), p_id: b.dataset.id, p_status: b.dataset.st })
+          .then(loadBar).catch(function (e) { toast('Ging nicht: ' + e.message); b.disabled = false; });
+      };
+    });
+  }
+
+  // Kurzer Doppel-Ping über Web Audio, keine Datei nötig. Erst nach einer
+  // Berührung erlaubt der Browser Ton – deshalb der Knopf „Ton testen“.
+  var pingCtx = null;
+  function ping() {
+    try {
+      pingCtx = pingCtx || new (window.AudioContext || window.webkitAudioContext)();
+      if (pingCtx.state === 'suspended') pingCtx.resume();
+      [0, 0.18].forEach(function (dt) {
+        var o = pingCtx.createOscillator(), gn = pingCtx.createGain();
+        o.type = 'sine'; o.frequency.value = dt ? 1318 : 988;
+        gn.gain.setValueAtTime(0.0001, pingCtx.currentTime + dt);
+        gn.gain.exponentialRampToValueAtTime(0.5, pingCtx.currentTime + dt + 0.02);
+        gn.gain.exponentialRampToValueAtTime(0.0001, pingCtx.currentTime + dt + 0.5);
+        o.connect(gn); gn.connect(pingCtx.destination);
+        o.start(pingCtx.currentTime + dt); o.stop(pingCtx.currentTime + dt + 0.55);
+      });
+    } catch (e) {}
   }
 
   /* ---- Druckansicht: Aushang + Tischkarten ---- */
@@ -1417,7 +1584,10 @@
       '<label class="f" for="pin">Admin-PIN (aus dem Supabase-Setup)</label>' +
       '<input id="pin" type="password" value="' + esc(lsGet(LS.pin, '')) + '" placeholder="PIN">' +
       '<div class="row" style="margin-top:12px"><button class="btn sec2" id="mod">Alle Fotos laden (inkl. verborgene)</button></div>' +
-      '<div id="modlist"></div></div>';
+      '<div class="hint">Testfotos löschen: PIN eintippen, laden, Fotos anhaken und „Löschen“ – oder unten „Alle löschen“.</div>' +
+      '<div id="modlist"></div>' +
+      (CFG.ordering ? '<div class="row" style="margin-top:14px"><a class="btn sec2" href="#/bar">🍸 Bar-Ansicht fürs iPad öffnen</a></div>' : '') +
+      '</div>';
 
     /* Einstellungen */
     h += '<div class="card" style="padding:16px;margin:14px 0">' +
@@ -1839,6 +2009,7 @@
       case 'admin': viewAdmin(); break;
       case 'print': viewPrint(); break;
       case 'karte': viewKarte(); break;
+      case 'bar': viewBar(); break;
       case 'slideshow': if (!$('#slideshow')) viewSlideshow(); break;
       default: viewTasks();
     }

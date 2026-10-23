@@ -88,6 +88,8 @@ window.EVENT = {
     ] },
   ],
   barFoot: 'Champagner, Crémant, Wein, Bier, Wasser, Cola und Coke Zero in Selbstbedienung.',
+  // Drinks per App vorbestellen (Gag): Knopf an jedem Drink, Bar-Ansicht unter #/bar
+  ordering: true,
 
   menu: [
     { group: 'Zur Begrüßung', text: 'Golden Hour · Champagner · Scampi · Merguez · Kräuterbaguette' },
