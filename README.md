@@ -109,8 +109,10 @@ Bestellungen unter **`#/bar`** (Gäste-Link öffnen, dann `#/bar` anhängen, Adm
 eingeben, einmal „Ton testen“ tippen, damit der Browser Ton erlaubt): neue
 Bestellungen blinken golden und pingen, „Fertig“ meldet dem Gast per Hinweis,
 Ping und Vibration „abholen“. Bildschirm bleibt an (Wake Lock).
+**Bestell-Tracker** im Gastgeber-Bereich (Abschnitt 5b, PIN): Gesamtzahl, fertig, offen, storniert,
+Rangliste der Drinks, Verlauf pro Stunde, durstigste Gäste; die Bar-Ansicht zeigt die Tageszahl.
 Datenbank: Tabelle `event_orders` + Funktionen `ep_orders_mine`, `ep_order_cancel`,
-`ep_bar_list`, `ep_bar_set_status` (SQL im Supabase-Projekt eingespielt am 23.10.2026;
+`ep_bar_list`, `ep_bar_set_status`, `ep_orders_all` (SQL im Supabase-Projekt eingespielt am 23.10.2026;
 Schema siehe Commit „Drinks per App vorbestellen“). Mit `ordering: false` verschwindet alles.
 
 ### 3 · App verbinden und testen
