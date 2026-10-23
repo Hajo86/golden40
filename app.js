@@ -1248,9 +1248,15 @@
     var note = prompt(drink + ' bestellen für ' + guest + '.\nWunsch dazu? (z. B. „ohne Eis“, sonst leer lassen)', '');
     if (note == null) return;
     if (btn) btn.disabled = true;
-    api.insert('/rest/v1/event_orders', {
-      event_id: CFG.eventId, guest_name: guest, drink: drink,
-      note: note.trim().slice(0, 80) || null, owner_token: ownerToken,
+    // return=minimal: anon darf nur einfügen, nicht lesen – mit "representation"
+    // würde Postgres die Zeile zurückgeben wollen und daran scheitern (RLS).
+    sbFetch('/rest/v1/event_orders', {
+      method: 'POST',
+      headers: sbHeaders({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
+      body: JSON.stringify({
+        event_id: CFG.eventId, guest_name: guest, drink: drink,
+        note: note.trim().slice(0, 80) || null, owner_token: ownerToken,
+      }),
     }).then(function () {
       toast('🛎️ ' + drink + ' bestellt – blinkt jetzt an der Bar.');
       loadMyOrders();
