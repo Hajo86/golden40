@@ -2,6 +2,7 @@
    Nur für Tests: alles im Speicher, keine Persistenz, keine echte Sicherheit.
 
    Start:  node tests/mock-supabase.mjs [port] [--reject-auth]
+   /__pause und /__resume simulieren ein schlafendes Supabase-Projekt.
    --reject-auth simuliert Schluessel, die den Authorization-Header ablehnen
    (401), damit der Fallback der App geprueft werden kann.                     */
 import { createServer } from 'http';
@@ -12,6 +13,7 @@ const REJECT_AUTH = process.argv.includes('--reject-auth');
 const NO_LIST_FN = process.argv.includes('--no-list-fn');
 const PIN = process.env.EP_PIN || 'Hajo86';
 
+let paused = false;              // simuliert ein schlafendes Projekt
 const rows = [];                 // Datenbankzeilen
 const objects = new Map();       // Storage: path -> Buffer
 
@@ -36,7 +38,16 @@ const server = createServer(async (req, res) => {
   if (req.method === 'OPTIONS') { res.writeHead(204, CORS); return res.end(); }
 
   // Nur fuer Tests: Zustand leeren, damit Laeufe sich nicht beeinflussen
-  if (path === '/__reset') { rows.length = 0; objects.clear(); return json(res, 200, { reset: true }); }
+  if (path === '/__reset') { rows.length = 0; objects.clear(); paused = false; return json(res, 200, { reset: true }); }
+
+  // Nur fuer Tests: ein schlafendes Supabase-Projekt. Ein pausiertes Projekt
+  // antwortet nicht mit JSON, sondern mit einer HTML-Fehlerseite des Gateways.
+  if (path === '/__pause') { paused = true; return json(res, 200, { paused: true }); }
+  if (path === '/__resume') { paused = false; return json(res, 200, { paused: false }); }
+  if (paused) {
+    res.writeHead(503, { ...CORS, 'content-type': 'text/html' });
+    return res.end('<html><body>Project is paused</body></html>');
+  }
 
   // Oeffentlicher Bucket: ohne Schluessel lesbar. Muss so sein, denn ein
   // <img src="..."> kann keine Header mitschicken.

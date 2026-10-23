@@ -506,12 +506,15 @@
       'Das Foto wird sofort gesendet — lass die Seite bis dahin offen.';
   }
 
+  // Legt das Foto nur ab. Der Versand (flush) wird danach angestossen, aber
+  // NICHT abgewartet: der Gast soll nicht vor einem haengenden Knopf sitzen,
+  // weil der Server schlaeft oder das Netz auf dem Fest schwach ist.
   function enqueue(item) {
     state.queue.push(item.id);
     return idb.put('queue', item).catch(function () {
       idbOk = false;
       memQueue.push(item);
-    }).then(function () { return flush(); });
+    });
   }
 
   var flushing = false;
@@ -522,7 +525,11 @@
       .catch(function () { idbOk = false; return []; })
       .then(function (stored) {
       var items = stored.concat(memQueue);
-      if (!items.length) { state.queueError = ''; return; }
+      // Erst anzeigen, dann senden: der Hinweis "x Fotos warten" muss sofort
+      // stehen, nicht erst wenn ein schlafender Server geantwortet hat.
+      state.queue = items.map(function (i) { return i.id; });
+      if (!items.length) { state.queueError = ''; renderIfLive(); return; }
+      renderIfLive();
       if (!online()) {
         // Demo-Modus: Warteschlange in die lokale Galerie überführen
         return items.reduce(function (p, it) {
@@ -569,6 +576,7 @@
       state.queue = rest.map(function (i) { return i.id; })
         .concat(memQueue.map(function (i) { return i.id; }));
       flushing = false;
+      renderIfLive();
       return refresh(true);
     }).catch(function (e) {
       flushing = false;
@@ -841,8 +849,10 @@
         clearPending();
         enqueue(item).then(function () {
           markMine(id);
-          toast((online() ? 'Danke! Dein Foto ist in der Galerie. 🎉' : 'Foto gespeichert (Demo-Modus).') + storageNote(), idbOk ? 2600 : 6000);
+          toast((online() ? 'Danke! Dein Foto ist gespeichert und geht in die Galerie. 🎉'
+            : 'Foto gespeichert (Demo-Modus).') + storageNote(), idbOk ? 2600 : 6000);
           go('#/tasks');
+          flush();          // laeuft im Hintergrund weiter, auch ueber Seitenwechsel
         }).catch(function (e) {
           toast('Das Foto ließ sich nicht senden: ' + e.message +
             ' Versuch es bitte noch einmal.', 6000);
@@ -1858,5 +1868,5 @@
   }
 
   // Debug-Zugriff für den Gastgeber (Konsole)
-  window.EP = { state: state, refresh: refresh, flush: flush, cfg: function () { return CFG; } };
+  window.EP = { state: state, refresh: refresh, flush: flush, render: render, cfg: function () { return CFG; } };
 })();
