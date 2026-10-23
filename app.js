@@ -697,12 +697,9 @@
       (CFG.dresscode ? '<div style="margin-top:14px"><span class="redbadge">Smart Casual</span></div>' : '') +
       '</div>' +
       '<p style="color:var(--muted)">' + esc(CFG.welcome || '') + '</p>' +
+      nameCardHtml() +
       (CFG.program && CFG.program.length
         ? '<div class="caps" style="margin-top:18px">Der Abend</div>' + programHtml(false) : '') +
-      '<label class="f" for="gname">Wie heißt du?</label>' +
-      '<input id="gname" type="text" autocomplete="given-name" maxlength="24" placeholder="Vorname" value="' + esc(guest) + '">' +
-      '<div class="hint">Damit ' + esc(CFG.honoree || 'das Geburtstagskind') + ' später sieht, von wem die Fotos sind. ' +
-      'Du kannst das Feld auch leer lassen.</div>' +
       '<div class="card" style="padding:14px;margin:18px 0;font-size:.85rem;color:var(--muted)">' +
       '<b style="color:var(--ink)">Gut zu wissen</b>' +
       '<ul style="margin:8px 0 0;padding-left:18px;line-height:1.5">' +
@@ -714,18 +711,37 @@
       '</div>' +
       '<button class="btn" id="go">Los geht\'s</button>' +
       '</div>';
-    $('#go').onclick = function () {
-      guest = ($('#gname').value || '').trim().slice(0, 24);
+    var goBtn = $('#go'), nameIn = $('#gname');
+    function syncGo() { goBtn.disabled = !(nameIn.value || '').trim(); }
+    nameIn.oninput = syncGo; syncGo();
+    nameIn.onkeydown = function (e) { if (e.key === 'Enter' && !goBtn.disabled) goBtn.click(); };
+    goBtn.onclick = function () {
+      guest = (nameIn.value || '').trim().slice(0, 24);
+      if (!guest) { nameIn.focus(); toast('Bitte zuerst deinen Vornamen eintragen.'); return; }
       lsSet(LS.guest, guest);
       lsSet(LS.consent, new Date().toISOString());
       go('#/tasks');
     };
   }
 
+  // Auffällige Namenskarte: auf der Startseite Pflicht, auf der Aufgabenseite
+  // als Nachfrage für alle, die schon ohne Namen drin sind.
+  function nameCardHtml(withSave) {
+    return '<div class="card namecard">' +
+      '<div class="caps" style="color:var(--gold)">Erst mal: wer bist du?</div>' +
+      '<label class="f" for="gname" style="margin-top:8px;font-size:1.05rem">Dein Vorname</label>' +
+      '<input id="gname" type="text" autocomplete="given-name" maxlength="24" placeholder="z. B. Nadine" value="' + esc(guest) + '">' +
+      '<div class="hint">Steht unter deinen Fotos und auf deinen Drink-Bestellungen, damit ' +
+      esc(CFG.honoree || 'das Geburtstagskind') + ' und die Bar wissen, von wem sie sind.</div>' +
+      (withSave ? '<div class="row" style="margin-top:10px"><button class="btn" id="gsave">Name speichern</button></div>' : '') +
+      '</div>';
+  }
+
   /* ---- Aufgabenliste ---- */
   function viewTasks() {
     var open = TASKS.filter(function (t) { return !myCount(t.id); });
     var h = statusBanner();
+    if (!guest) h += nameCardHtml(true);
 
     h += '<div class="filters" id="fl">' +
       '<button data-m="open" aria-pressed="' + (filter.mode === 'open') + '">Noch offen</button>' +
@@ -779,6 +795,13 @@
     var rnd = $('#rnd');
     if (rnd) rnd.onclick = function () { go('#/task/' + open[Math.floor(Math.random() * open.length)].id); };
     bindTaskCards();
+    if ($('#gsave')) {
+      $('#gsave').onclick = function () {
+        var n = ($('#gname').value || '').trim().slice(0, 24);
+        if (!n) { $('#gname').focus(); toast('Bitte deinen Vornamen eintragen.'); return; }
+        guest = n; lsSet(LS.guest, guest); toast('Hallo ' + guest + '!'); render();
+      };
+    }
   }
 
   function taskCard(t, c) {
