@@ -1,6 +1,6 @@
 /* Service Worker — App-Shell-Cache.
    Fotos und Galerie-Daten werden NICHT gecacht (sollen immer aktuell sein). */
-var CACHE = 'golden40-v1';
+var CACHE = 'golden40-v2';
 var SHELL = [
   './', './index.html', './app.js', './tasks.js', './qr.js', './zip.js',
   './manifest.json', './icons/icon-192.png', './icons/icon-512.png',
@@ -30,7 +30,9 @@ self.addEventListener('fetch', function (e) {
   if (url.origin !== location.origin) return;
   // App-Shell: erst Netz, bei Fehler Cache (damit Updates ankommen)
   e.respondWith(
-    fetch(req).then(function (res) {
+    // no-cache: immer beim Server nachfragen, damit Updates sofort ankommen
+    // (GitHub Pages liefert sonst bis zu 10 Minuten die alte Datei aus dem HTTP-Cache)
+    fetch(req, { cache: 'no-cache' }).then(function (res) {
       if (res && res.ok) {
         var copy = res.clone();
         caches.open(CACHE).then(function (c) { c.put(req, copy); });
