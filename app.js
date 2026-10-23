@@ -1259,6 +1259,10 @@
       }),
     }).then(function () {
       toast('🛎️ ' + drink + ' bestellt – blinkt jetzt an der Bar.');
+      watchOrders(true);
+      if (window.Notification && Notification.permission === 'default') {
+        try { Notification.requestPermission().catch(function () {}); } catch (e) {}
+      }
       loadMyOrders();
     }).catch(function (e) {
       toast('Bestellung ging nicht raus: ' + e.message, 4000);
@@ -1291,6 +1295,44 @@
         }).catch(function (e) { toast('Ging nicht: ' + e.message); });
       };
     });
+  }
+
+  // Wächter: prüft alle 10 s, ob eine offene Bestellung "fertig" wurde, und
+  // meldet das mit Ping, Vibration, Hinweis und (wenn erlaubt) Benachrichtigung.
+  // Läuft unabhängig vom Reiter, solange etwas offen ist.
+  var watch = { timer: null, open: lsGet(NS + 'ep.openorders', {}) };
+  function watchOrders(force) {
+    if (!orderingOn()) return;
+    if (watch.timer) { if (force) checkOrders(); return; }
+    checkOrders();
+    watch.timer = setInterval(checkOrders, 10000);
+  }
+  function checkOrders() {
+    api.rpc('ep_orders_mine', { p_event: CFG.eventId, p_token: ownerToken }).then(function (rows) {
+      rows = rows || [];
+      var stillOpen = {};
+      rows.forEach(function (o) {
+        if (o.status === 'open') { stillOpen[o.id] = o.drink; return; }
+        if (watch.open[o.id] && o.status === 'done') notifyDone(o.drink);
+      });
+      watch.open = stillOpen; lsSet(NS + 'ep.openorders', stillOpen);
+      if (!Object.keys(stillOpen).length && watch.timer) { clearInterval(watch.timer); watch.timer = null; }
+      if (route.name === 'karte') { myOrders = rows; renderMyOrders(); }
+    }).catch(function () {});
+  }
+  function notifyDone(drink) {
+    var msg = '🍸 Dein ' + drink + ' ist fertig – abholen an der Bar!';
+    toast(msg, 8000); ping();
+    try { if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]); } catch (e) {}
+    if (window.Notification && Notification.permission === 'granted') {
+      try {
+        if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+          navigator.serviceWorker.ready.then(function (reg) {
+            reg.showNotification('Drink fertig!', { body: drink + ' – abholen an der Bar', tag: 'order', vibrate: [200, 100, 200] });
+          }).catch(function () { new Notification('Drink fertig!', { body: drink + ' – abholen an der Bar' }); });
+        } else { new Notification('Drink fertig!', { body: drink + ' – abholen an der Bar' }); }
+      } catch (e) {}
+    }
   }
 
   /* ---- Bar-Ansicht (iPad an der Theke): #/bar ---- */
@@ -2045,6 +2087,9 @@
 
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
     navigator.serviceWorker.register('sw.js').catch(function () {});
+  }
+  if (Object.keys(lsGet(NS + 'ep.openorders', {})).length) {
+    try { watchOrders(); } catch (e) {}
   }
 
   // Debug-Zugriff für den Gastgeber (Konsole)
