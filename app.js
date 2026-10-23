@@ -1770,6 +1770,15 @@
     view.innerHTML = h;
 
     $('#back').onclick = function () { go('#/tasks'); };
+    if ($('#trk')) $('#trk').onclick = function () {
+      var pin = ($('#pin').value || '').trim(); if (!pin) { toast('Erst die PIN eintragen.'); return; }
+      lsSet(LS.pin, pin);
+      $('#trklist').innerHTML = '<div class="hint"><span class="sp"></span> Lade …</div>';
+      api.rpc('ep_orders_all', { p_pin: pin, p_event: CFG.eventId }).then(function (rows) {
+        $('#trklist').innerHTML = trackerHtml(rows || []);
+      }).catch(function (e) { $('#trklist').innerHTML = '<div class="hint">Ging nicht: ' + esc(e.message) + '</div>'; });
+    };
+
 
     $('#sbreset').onclick = function () {
       localStorage.removeItem(LS.sb);
@@ -2016,14 +2025,6 @@
     Array.prototype.forEach.call(box.querySelectorAll('[data-sel]'), function (c) {
       c.onchange = function () { modSel[c.dataset.sel] = c.checked; renderModList(); };
     });
-    if ($('#trk')) $('#trk').onclick = function () {
-      var pin = ($('#pin').value || '').trim(); if (!pin) { toast('Erst die PIN eintragen.'); return; }
-      lsSet(LS.pin, pin);
-      $('#trklist').innerHTML = '<div class="hint"><span class="sp"></span> Lade …</div>';
-      api.rpc('ep_orders_all', { p_pin: pin, p_event: CFG.eventId }).then(function (rows) {
-        $('#trklist').innerHTML = trackerHtml(rows || []);
-      }).catch(function (e) { $('#trklist').innerHTML = '<div class="hint">Ging nicht: ' + esc(e.message) + '</div>'; });
-    };
     $('#mAll').onclick = function () {
       adminRows.forEach(function (r) { modSel[r.id] = true; }); renderModList();
     };
