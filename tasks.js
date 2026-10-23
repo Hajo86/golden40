@@ -87,7 +87,7 @@ window.EVENT = {
       { name: 'Spritz Zero', glass: 'Weinglas', desc: 'Crodino, alkoholfreier Sekt, Orange' },
     ] },
   ],
-  barFoot: 'Champagner, Crémant, Wein, Bier und Wasser in Selbstbedienung.',
+  barFoot: 'Champagner, Crémant, Wein, Bier, Wasser, Cola und Coke Zero in Selbstbedienung.',
 
   menu: [
     { group: 'Zur Begrüßung', text: 'Golden Hour · Champagner · Scampi · Merguez · Kräuterbaguette' },
