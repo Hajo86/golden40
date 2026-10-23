@@ -60,7 +60,7 @@ window.EVENT = {
   program: [
     { time: '18:00', text: 'Empfang mit Golden Hour an der Bar' },
     { time: '19:00', text: 'Dinner: Rodizio vom Spieß, Buffet' },
-    { time: '21:00', text: 'Tiramisu-Tower „40" und Candy Bar im Wohnzimmer' },
+    { time: '21:00', text: 'Limoncello-Tiramisu-Tower „40" und Candy Bar im Wohnzimmer' },
     { time: '22:00', text: 'Dancefloor' },
     { time: '00:00', text: 'Mitternachtsanstoß' },
     { time: '00:30', text: 'Bar schließt' },
@@ -97,7 +97,7 @@ window.EVENT = {
       'Tomate-Mozzarella · gemischte frische Salate' },
     { group: 'Vegetarisch', text: 'Gemüsespieße, Folienkartoffel mit Kräuterquark, Tomate-Mozzarella ' +
       'und alle Salate' },
-    { group: 'Süß', text: 'Tiramisu-Tower „40" · Candy Bar im Wohnzimmer' },
+    { group: 'Süß', text: 'Limoncello-Tiramisu-Tower „40" · Candy Bar im Wohnzimmer' },
   ],
 };
 
@@ -124,7 +124,7 @@ window.TASKS = [
   // ---- Rodizio & Buffet (Challenge 3) ------------------------------------
   { id: 'd01', cat: 'dinner', text: 'Der schönste Spieß vom Rodizio.' },
   { id: 'd02', cat: 'dinner', text: 'Fotografiere, wie am Buffet frisch vom Spieß geschnitten wird.', icon: '🔪' },
-  { id: 'd04', cat: 'dinner', text: 'Der Tiramisu-Tower „40" — bevor er angeschnitten wird.', icon: '🍰' },
+  { id: 'd04', cat: 'dinner', text: 'Der Limoncello-Tiramisu-Tower „40" — bevor er angeschnitten wird.', icon: '🍰' },
 
   // ---- Dancefloor (Challenge 4) ------------------------------------------
   { id: 'f01', cat: 'floor',  text: 'Beste Tanzpose nach 22 Uhr.' },
