@@ -104,16 +104,20 @@ window.EVENT = {
 };
 
 window.CATEGORIES = [
+  { id: 'free',    label: 'Eigene Fotos',     icon: '📷' },
   { id: 'golden',  label: 'Golden Hour',      icon: '🥂' },
   { id: 'bar',     label: 'An der Bar',       icon: '🍸' },
   { id: 'dinner',  label: 'Rodizio & Buffet', icon: '🔥', timed: true },
   { id: 'floor',   label: 'Dancefloor',       icon: '💃', timed: true },
   { id: 'guests',  label: 'Gäste',            icon: '🤝' },
   { id: 'helge',   label: 'Helge',            icon: '✳️' },
-  { id: 'free',    label: 'Eigene Fotos',     icon: '📷' },
 ];
 
 window.TASKS = [
+  // ---- Eigene Fotos: alles, was zu keiner Aufgabe passt --------------------
+  { id: 'x01', cat: 'free',   text: 'Einfach ein Foto vom Abend, das dir gefällt — so viele du willst.' },
+  { id: 'x02', cat: 'free',   text: 'Dein Lieblingsmoment der Nacht.', icon: '✨' },
+
   // ---- Golden Hour / Fotowand (Challenges 1 und 5 aus dem Briefing) ------
   { id: 'g01', cat: 'golden', text: 'Dein Golden-Hour-Glas vor der Fotowand.' },
   { id: 'g02', cat: 'golden', text: 'Ein Paar- oder Gruppenfoto an der goldenen Fotowand im Flur.', icon: '📸' },
@@ -144,8 +148,4 @@ window.TASKS = [
   { id: 'h02', cat: 'helge',  text: 'Mache ein Selfie mit Helge.' },
   { id: 'h03', cat: 'helge',  text: 'Helge und Nadine zusammen in einem Bild.' },
   { id: 'h05', cat: 'helge',  text: 'Ein Foto, das Helge auch mit 50 noch gerne anschaut.', icon: '🕰️' },
-
-  // ---- Eigene Fotos: alles, was zu keiner Aufgabe passt --------------------
-  { id: 'x01', cat: 'free',   text: 'Einfach ein Foto vom Abend, das dir gefällt — so viele du willst.' },
-  { id: 'x02', cat: 'free',   text: 'Dein Lieblingsmoment der Nacht.', icon: '✨' },
 ];
