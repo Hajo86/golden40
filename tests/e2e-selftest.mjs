@@ -19,8 +19,8 @@ await ctx.route('**/tasks.js', async route => {
 const p = await ctx.newPage();
 const errs = []; p.on('pageerror', e => errs.push(e.message));
 await p.addInitScript((k) => {
-  localStorage.setItem('ep.consent', JSON.stringify('x'));
-  localStorage.setItem('ep.key', JSON.stringify(k));
+  localStorage.setItem('golden40.ep.consent', JSON.stringify('x'));
+  localStorage.setItem('golden40.ep.key', JSON.stringify(k));
 }, '7wvnlpqv');
 
 // --- Navigation: Fussleiste ueberall ---
@@ -69,7 +69,7 @@ await p.waitForTimeout(600);
 await p.goto(BASE + '#/admin');
 await p.click('#sbreset');
 await p.waitForTimeout(600);
-ok(await p.evaluate(() => !localStorage.getItem('ep.sb')), 'Zuruecksetzen entfernt die Geraete-Werte');
+ok(await p.evaluate(() => !localStorage.getItem('golden40.ep.sb')), 'Zuruecksetzen entfernt die Geraete-Werte');
 
 console.log('\nSeitenfehler:', errs.length ? errs : 'keine');
 await b.close();

@@ -26,10 +26,10 @@ const errors = [];
 const g1 = await ctx.newPage();
 g1.on('pageerror', e => errors.push('gast1: ' + e.message));
 await g1.addInitScript(([api, key]) => {
-  localStorage.setItem('ep.sb', JSON.stringify({ url: api, key: key, bucket: 'eventpic' }));
-  localStorage.setItem('ep.key', JSON.stringify('7wvnlpqv'));
-  localStorage.setItem('ep.guest', JSON.stringify('Anna'));
-  localStorage.setItem('ep.consent', JSON.stringify(new Date().toISOString()));
+  localStorage.setItem('golden40.ep.sb', JSON.stringify({ url: api, key: key, bucket: 'eventpic' }));
+  localStorage.setItem('golden40.ep.key', JSON.stringify('7wvnlpqv'));
+  localStorage.setItem('golden40.ep.guest', JSON.stringify('Anna'));
+  localStorage.setItem('golden40.ep.consent', JSON.stringify(new Date().toISOString()));
 }, [API, KEY]);
 await g1.goto(BASE, { waitUntil: 'networkidle' });
 await g1.waitForSelector('[data-task]');
@@ -80,10 +80,10 @@ const ctx2 = await browser.newContext({ viewport: { width: 414, height: 896 }, l
 const g2 = await ctx2.newPage();
 g2.on('pageerror', e => errors.push('gast2: ' + e.message));
 await g2.addInitScript(([api, key]) => {
-  localStorage.setItem('ep.sb', JSON.stringify({ url: api, key: key, bucket: 'eventpic' }));
-  localStorage.setItem('ep.key', JSON.stringify('7wvnlpqv'));
-  localStorage.setItem('ep.guest', JSON.stringify('Bernd'));
-  localStorage.setItem('ep.consent', JSON.stringify(new Date().toISOString()));
+  localStorage.setItem('golden40.ep.sb', JSON.stringify({ url: api, key: key, bucket: 'eventpic' }));
+  localStorage.setItem('golden40.ep.key', JSON.stringify('7wvnlpqv'));
+  localStorage.setItem('golden40.ep.guest', JSON.stringify('Bernd'));
+  localStorage.setItem('golden40.ep.consent', JSON.stringify(new Date().toISOString()));
 }, [API, KEY]);
 await g2.goto(BASE + '#/gallery', { waitUntil: 'networkidle' });
 await g2.waitForSelector('.grid figure', { timeout: 10000 });

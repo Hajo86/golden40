@@ -23,9 +23,9 @@ await ctx.route('**/tasks.js', async route => {
 const p = await ctx.newPage();
 const errs = []; p.on('pageerror', e => errs.push(e.message));
 await p.addInitScript(() => {
-  localStorage.setItem('ep.consent', JSON.stringify('x'));
-  localStorage.setItem('ep.key', JSON.stringify('7wvnlpqv'));
-  localStorage.setItem('ep.guest', JSON.stringify('Heidi'));
+  localStorage.setItem('golden40.ep.consent', JSON.stringify('x'));
+  localStorage.setItem('golden40.ep.key', JSON.stringify('7wvnlpqv'));
+  localStorage.setItem('golden40.ep.guest', JSON.stringify('Heidi'));
 });
 
 // Zwei Fotos hochladen
@@ -69,7 +69,7 @@ ok(await p.locator('[data-task="b01"].done').count() === 0, 'Haken bei der erste
 ok(await p.locator('[data-task].done').count() === 0, 'Kein einziger Haken mehr');
 const sub = await p.textContent('#hSub');
 ok(/Mach mit|0 von/.test(sub), 'Kopfzeile zurueckgesetzt: ' + sub);
-ok(await p.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('ep.mine') || '{}')).length === 0),
+ok(await p.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('golden40.ep.mine') || '{}')).length === 0),
    'Auch der lokale Stand ist geleert');
 
 // Und nach einem Neuladen bleibt es dabei

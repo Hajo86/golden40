@@ -46,9 +46,17 @@
   }
 
   /* ======================= 2. Konfiguration ============================== */
+  /* ---- Eigener Speicherbereich pro App -----------------------------------
+     Beide Foto-Apps liegen unter derselben Adresse (hajo86.github.io). Browser
+     teilen Speicher und Datenbank pro Adresse, nicht pro Unterordner — ohne
+     eigenes Namensschild würden sich die Apps gegenseitig Gastname, Zugangs-
+     daten und vor allem die Warteschlange der noch nicht gesendeten Fotos
+     überschreiben. Darum trägt hier jeder Eintrag den Namen des Events. */
+  var NS = (window.EVENT && window.EVENT.eventPrefix) ? window.EVENT.eventPrefix + '.' : '';
   var LS = {
-    guest: 'ep.guest', token: 'ep.token', consent: 'ep.consent',
-    sb: 'ep.sb', pin: 'ep.pin', cfg: 'ep.cfg', mine: 'ep.mine', url: 'ep.url', key: 'ep.key',
+    guest: NS + 'ep.guest', token: NS + 'ep.token', consent: NS + 'ep.consent',
+    sb: NS + 'ep.sb', pin: NS + 'ep.pin', cfg: NS + 'ep.cfg', mine: NS + 'ep.mine',
+    url: NS + 'ep.url', key: NS + 'ep.key',
   };
   function lsGet(k, fb) {
     try { var v = localStorage.getItem(k); return v == null ? fb : JSON.parse(v); }
@@ -108,7 +116,7 @@
   if (!ownerToken) { ownerToken = uid(); lsSet(LS.token, ownerToken); }
 
   /* ======================= 4. IndexedDB ================================== */
-  var DB_NAME = 'eventpic', DB_VER = 1, dbp = null;
+  var DB_NAME = NS ? NS.slice(0, -1) + '-eventpic' : 'eventpic', DB_VER = 1, dbp = null;
   function db() {
     if (dbp) return dbp;
     dbp = new Promise(function (res, rej) {
@@ -231,9 +239,12 @@
     // schaltet die App beim nächsten Abruf von selbst um.
     //   null = noch nicht ausprobiert, true = Funktionen da, false = ohne
     useRpc: null,
+    // Jeder Fehler der Funktion führt zum direkten Lesen — nur echte
+    // Netzprobleme nicht, die würden beide Wege gleichermaßen treffen.
     _noFn: function (e) {
       var m = (e && e.message) || '';
-      return /PGRST202|could not find the function|does not exist|404/i.test(m);
+      if (/Keine Verbindung zu/i.test(m)) return false;
+      return true;
     },
     // owner_token wird bewusst NICHT mitgeladen: er ist der Schlüssel, mit dem
     // ein Gast sein eigenes Foto löschen darf, und hat in der Galerie aller
@@ -327,6 +338,7 @@
     urls: {},            // objectURL-Cache für Demo-Fotos
     lastFetch: 0,
     fetchError: '',
+    queueError: '',      // warum der letzte Upload-Versuch scheiterte
     admin: false,
   };
   function myCount(taskId) { return state.mine[taskId] || 0; }
@@ -505,7 +517,7 @@
       .catch(function () { idbOk = false; return []; })
       .then(function (stored) {
       var items = stored.concat(memQueue);
-      if (!items.length) return;
+      if (!items.length) { state.queueError = ''; return; }
       if (!online()) {
         // Demo-Modus: Warteschlange in die lokale Galerie überführen
         return items.reduce(function (p, it) {
@@ -538,6 +550,7 @@
             return idb.del('queue', it.id).catch(function () {});
           }).catch(function (e) {
             it.error = e.message; it.tries = (it.tries || 0) + 1;
+            state.queueError = e.message;
             return idb.put('queue', it).catch(function () {
               idbOk = false;
               if (memQueue.indexOf(it) < 0) memQueue.push(it);
@@ -621,7 +634,9 @@
     }
     if (state.queue.length) {
       h += '<div class="banner info"><span class="sp"></span> ' + state.queue.length +
-        (state.queue.length === 1 ? ' Foto wartet' : ' Fotos warten') + ' auf Versand – das läuft automatisch weiter.</div>';
+        (state.queue.length === 1 ? ' Foto wartet' : ' Fotos warten') + ' auf Versand – das läuft automatisch weiter.' +
+        (state.queueError ? '<br><span style="opacity:.85">Grund: ' + esc(state.queueError) + '</span>' : '') +
+        '</div>';
     }
     return h;
   }
@@ -1318,7 +1333,10 @@
                           : '<br>Quelle: <code>tasks.js</code> — gilt für alle Gäste') +
       '<br>Diese Seite läuft auf: <code>' + esc(location.host) + '</code>' +
       '<br>Zwischenspeicher (Offline-Warteschlange): ' + (idbOk ? '✅ nutzbar' : '⚠️ nicht nutzbar — Fotos gehen nur direkt raus') +
-      (state.fetchError ? '<br>Letzter Fehler: ' + esc(state.fetchError) : '') + '</div>' +
+      (state.fetchError ? '<br>Letzter Lesefehler: ' + esc(state.fetchError) : '') +
+      (state.queueError ? '<br>Letzter Upload-Fehler: ' + esc(state.queueError) : '') +
+      '<br>Lesepfad: ' + (api.useRpc === false ? 'direkt aus der Tabelle' :
+        api.useRpc === true ? 'über die Funktionen' : 'noch nicht geprüft') + '</div>' +
       '<div class="banner" style="margin-top:12px">Bitte ein <b>eigenes</b> Supabase-Projekt nur für dieses Fest ' +
       'verwenden – nicht das einer anderen App. Der Anon-Key liegt bei jedem Gast im Browser und gilt für das ' +
       'ganze Projekt: alles, was dort für <code>anon</code> offen ist, wäre für die Gäste offen.</div>' +

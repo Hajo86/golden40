@@ -19,9 +19,9 @@ await ctx.route('**/tasks.js', async route => {
     .replace(/supabaseKey: '[^']*'/, "supabaseKey: 'sb_publishable_TEST'") });
 });
 await ctx.addInitScript((k) => {
-  localStorage.setItem('ep.key', JSON.stringify(k));
-  localStorage.setItem('ep.consent', JSON.stringify('x'));
-  localStorage.setItem('ep.guest', JSON.stringify('Nadine'));
+  localStorage.setItem('golden40.ep.key', JSON.stringify(k));
+  localStorage.setItem('golden40.ep.consent', JSON.stringify('x'));
+  localStorage.setItem('golden40.ep.guest', JSON.stringify('Nadine'));
 }, KEY);
 
 const p = await ctx.newPage();
@@ -54,8 +54,8 @@ await ctx2.route('**/tasks.js', async route => {
     .replace(/supabaseKey: '[^']*'/, "supabaseKey: 'sb_publishable_TEST'") });
 });
 await ctx2.addInitScript((k) => {
-  localStorage.setItem('ep.key', JSON.stringify(k));
-  localStorage.setItem('ep.consent', JSON.stringify('x'));
+  localStorage.setItem('golden40.ep.key', JSON.stringify(k));
+  localStorage.setItem('golden40.ep.consent', JSON.stringify('x'));
 }, KEY);
 const p2 = await ctx2.newPage();
 await p2.goto(BASE + '#/gallery', { waitUntil: 'networkidle' });

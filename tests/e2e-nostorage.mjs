@@ -1,7 +1,8 @@
 /* Foto-Upload muss auch dann funktionieren, wenn IndexedDB blockiert ist
    (privater Modus, voller Speicher, eingebetteter Browser). */
 import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
-const BASE = process.env.EP_BASE, API = process.env.EP_API;
+const BASE = process.env.EP_BASE || 'http://127.0.0.1:8199/';
+const API = process.env.EP_API || 'http://127.0.0.1:8300';
 const fails = [];
 const ok = (c, m) => { console.log((c ? 'OK   ' : 'FAIL ') + m); if (!c) fails.push(m); };
 
@@ -15,11 +16,11 @@ await p.addInitScript(([api]) => {
   Object.defineProperty(window, 'indexedDB', {
     get() { return { open() { throw new Error('IndexedDB ist in diesem Modus gesperrt'); } }; },
   });
-  localStorage.setItem('ep.sb', JSON.stringify({ url: api, key: 'sb_publishable_X', bucket: 'eventpic' }));
-  localStorage.setItem('ep.key', JSON.stringify('7wvnlpqv'));
-  localStorage.setItem('ep.guest', JSON.stringify('Clara'));
-  localStorage.setItem('ep.consent', JSON.stringify('x'));
-  localStorage.setItem('ep.key', JSON.stringify('7wvnlpqv'));
+  localStorage.setItem('golden40.ep.sb', JSON.stringify({ url: api, key: 'sb_publishable_X', bucket: 'eventpic' }));
+  localStorage.setItem('golden40.ep.key', JSON.stringify('7wvnlpqv'));
+  localStorage.setItem('golden40.ep.guest', JSON.stringify('Clara'));
+  localStorage.setItem('golden40.ep.consent', JSON.stringify('x'));
+  localStorage.setItem('golden40.ep.key', JSON.stringify('7wvnlpqv'));
 }, [API]);
 
 await p.goto(BASE, { waitUntil: 'networkidle' });

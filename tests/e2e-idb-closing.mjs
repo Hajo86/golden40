@@ -27,11 +27,11 @@ await p.addInitScript(([api]) => {
     return orig.apply(this, arguments);
   };
   window.__armIdbFailure = () => { armed = true; };
-  localStorage.setItem('ep.sb', JSON.stringify({ url: api, key: 'sb_publishable_X', bucket: 'eventpic' }));
-  localStorage.setItem('ep.key', JSON.stringify('7wvnlpqv'));
-  localStorage.setItem('ep.guest', JSON.stringify('Dora'));
-  localStorage.setItem('ep.consent', JSON.stringify('x'));
-  localStorage.setItem('ep.key', JSON.stringify('7wvnlpqv'));
+  localStorage.setItem('golden40.ep.sb', JSON.stringify({ url: api, key: 'sb_publishable_X', bucket: 'eventpic' }));
+  localStorage.setItem('golden40.ep.key', JSON.stringify('7wvnlpqv'));
+  localStorage.setItem('golden40.ep.guest', JSON.stringify('Dora'));
+  localStorage.setItem('golden40.ep.consent', JSON.stringify('x'));
+  localStorage.setItem('golden40.ep.key', JSON.stringify('7wvnlpqv'));
 }, [API]);
 
 await p.goto(BASE, { waitUntil: 'networkidle' });

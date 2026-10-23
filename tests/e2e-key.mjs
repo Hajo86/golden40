@@ -45,7 +45,7 @@ await p2.goto(BASE + '#k=' + KEY, { waitUntil: 'networkidle' });
 await p2.waitForSelector('#gname');
 ok(true, 'Mit Schluessel oeffnet die Begruessung');
 ok(!/[#&]k=/.test(p2.url()), 'Schluessel steht nicht mehr in der Adresszeile: ' + p2.url());
-ok(await p2.evaluate(() => JSON.parse(localStorage.getItem('ep.key'))) === KEY, 'Schluessel ist gemerkt');
+ok(await p2.evaluate(() => JSON.parse(localStorage.getItem('golden40.ep.key'))) === KEY, 'Schluessel ist gemerkt');
 const ev = await p2.evaluate(() => window.EP.cfg().eventId);
 ok(ev.endsWith('-' + KEY), 'Event-Kennung enthaelt den Schluessel: ' + ev);
 

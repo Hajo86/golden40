@@ -15,7 +15,7 @@ await ctx.route('**/tasks.js', async route => {
     .replace(/supabaseKey: '[^']*'/, "supabaseKey: ''");
   route.fulfill({ response: res, body });
 });
-await ctx.addInitScript((k) => localStorage.setItem('ep.key', JSON.stringify(k)), '7wvnlpqv');
+await ctx.addInitScript((k) => localStorage.setItem('golden40.ep.key', JSON.stringify(k)), '7wvnlpqv');
 const page = await ctx.newPage();
 const errors = [];
 page.on('console', m => {
@@ -75,7 +75,7 @@ ok(/1 von \d+/.test(await page.locator('#hSub').textContent()), 'Fortschritt: ' 
 
 // Komprimierung: JPEG, max 1600px
 const stored = await page.evaluate(async () => {
-  const d = await new Promise(r => { const q = indexedDB.open('eventpic'); q.onsuccess = () => r(q.result); });
+  const d = await new Promise(r => { const q = indexedDB.open('golden40-eventpic'); q.onsuccess = () => r(q.result); });
   const rows = await new Promise(r => { const q = d.transaction('local').objectStore('local').getAll(); q.onsuccess = () => r(q.result); });
   return rows.map(x => ({ type: x.blob.type, size: x.blob.size, w: x.width, h: x.height, cap: x.caption, task: x.task_id, guest: x.guest_name }));
 });
