@@ -1389,6 +1389,46 @@
     }
   }
 
+  // Auswertung der Bestellungen: Zahlen, Rangliste, Verlauf pro Stunde
+  function trackerHtml(rows) {
+    if (!rows.length) return '<div class="hint" style="margin-top:10px">Noch keine Bestellungen.</div>';
+    var byStatus = { open: 0, done: 0, cancelled: 0 }, byDrink = {}, byHour = {}, guests = {};
+    rows.forEach(function (o) {
+      byStatus[o.status] = (byStatus[o.status] || 0) + 1;
+      if (o.status !== 'cancelled') {
+        byDrink[o.drink] = (byDrink[o.drink] || 0) + 1;
+        var hr = new Date(o.created_at).getHours();
+        byHour[hr] = (byHour[hr] || 0) + 1;
+        guests[o.guest_name || 'Anonym'] = (guests[o.guest_name || 'Anonym'] || 0) + 1;
+      }
+    });
+    var valid = rows.length - byStatus.cancelled;
+    var drinks = Object.keys(byDrink).sort(function (a, b) { return byDrink[b] - byDrink[a]; });
+    var maxD = drinks.length ? byDrink[drinks[0]] : 1;
+    var hours = Object.keys(byHour).map(Number).sort(function (a, b) { return a - b; });
+    var maxH = Math.max.apply(null, hours.map(function (x) { return byHour[x]; }).concat([1]));
+    var topGuests = Object.keys(guests).sort(function (a, b) { return guests[b] - guests[a]; }).slice(0, 5);
+    var h = '<div class="stats">' +
+      '<div class="stat"><b>' + valid + '</b><span>Bestellungen</span></div>' +
+      '<div class="stat"><b>' + byStatus.done + '</b><span>fertig gemacht</span></div>' +
+      '<div class="stat"><b>' + byStatus.open + '</b><span>noch offen</span></div>' +
+      '<div class="stat"><b>' + byStatus.cancelled + '</b><span>storniert</span></div></div>';
+    h += '<div class="caps" style="margin:14px 0 6px">Rangliste</div><div class="list">' + drinks.map(function (d) {
+      return '<div class="it"><div class="g"><div class="t">' + esc(d) + '</div>' +
+        '<div class="prog" style="margin:6px 0 0"><i style="width:' + Math.round(byDrink[d] / maxD * 100) + '%"></i></div></div>' +
+        '<b>' + byDrink[d] + '</b></div>';
+    }).join('') + '</div>';
+    h += '<div class="caps" style="margin:14px 0 6px">Verlauf pro Stunde</div><div class="list">' + hours.map(function (x) {
+      return '<div class="it"><div class="g"><div class="t">' + (x < 10 ? '0' : '') + x + ':00 – ' + ((x + 1) % 24 < 10 ? '0' : '') + ((x + 1) % 24) + ':00</div>' +
+        '<div class="prog" style="margin:6px 0 0"><i style="width:' + Math.round(byHour[x] / maxH * 100) + '%"></i></div></div>' +
+        '<b>' + byHour[x] + '</b></div>';
+    }).join('') + '</div>';
+    h += '<div class="caps" style="margin:14px 0 6px">Durstigste Gäste</div><div class="list">' + topGuests.map(function (g) {
+      return '<div class="it"><div class="g"><div class="t">' + esc(g) + '</div></div><b>' + guests[g] + '</b></div>';
+    }).join('') + '</div>';
+    return h;
+  }
+
   /* ---- Bar-Ansicht (iPad an der Theke): #/bar ---- */
   var bar = { timer: null, seen: {}, first: true, lock: null, rows: [] };
   function viewBar() {
@@ -1405,7 +1445,7 @@
       return;
     }
     view.innerHTML = '<div class="bar"><div class="top"><h2>🍸 Bestellungen</h2>' +
-      '<span class="cnt" id="bcnt">–</span>' +
+      '<span class="cnt" id="bcnt">–</span><span class="hint" id="btotal" style="margin:0"></span>' +
       '<button class="btn sm sec2" id="bsound">🔔 Ton testen</button></div>' +
       '<div class="grid" id="bgrid"><div class="empty">Lade …</div></div>' +
       '<div class="hint" style="margin-top:16px">Aktualisiert alle 5 Sekunden. Neue Bestellungen blinken und pingen. ' +
@@ -1415,12 +1455,23 @@
       navigator.wakeLock.request('screen').then(function (l) { bar.lock = l; }).catch(function () {});
     }
     bar.first = true; bar.seen = {};
-    loadBar();
+    loadBar(); refreshBarTotal();
     clearInterval(bar.timer);
     bar.timer = setInterval(function () {
       if (route.name !== 'bar') { clearInterval(bar.timer); if (bar.lock) { try { bar.lock.release(); } catch (e) {} } return; }
       loadBar();
     }, 5000);
+  }
+
+  // Tageszahl: alle (nicht stornierten) Bestellungen, alle 60 s nachgeladen
+  function refreshBarTotal() {
+    var el = $('#btotal'); if (!el) return;
+    api.rpc('ep_orders_all', { p_pin: lsGet(LS.pin, ''), p_event: CFG.eventId }).then(function (rows) {
+      var n = (rows || []).filter(function (o) { return o.status !== 'cancelled'; }).length;
+      el.textContent = 'heute ' + n;
+    }).catch(function () {});
+    clearTimeout(bar.totalTimer);
+    bar.totalTimer = setTimeout(function () { bar.totalTimer = null; if (route.name === 'bar') refreshBarTotal(); }, 60000);
   }
 
   function loadBar() {
@@ -1444,6 +1495,7 @@
     var g = $('#bgrid'); if (!g) return;
     var open = bar.rows.filter(function (o) { return o.status === 'open'; });
     $('#bcnt').textContent = open.length + ' offen';
+    if (bar.rows.length && !bar.totalTimer) refreshBarTotal();
     if (!bar.rows.length) { g.innerHTML = '<div class="empty">Noch keine Bestellungen. 🍸</div>'; return; }
     g.innerHTML = bar.rows.map(function (o) {
       var isNew = fresh.indexOf(o.id) >= 0;
@@ -1690,6 +1742,15 @@
       '<div id="modlist"></div>' +
       (CFG.ordering ? '<div class="row" style="margin-top:14px"><a class="btn sec2" href="#/bar">🍸 Bar-Ansicht fürs iPad öffnen</a></div>' : '') +
       '</div>';
+
+    /* Bestell-Tracker */
+    if (CFG.ordering) {
+      h += '<div class="card" style="padding:16px;margin:14px 0">' +
+        '<h3>5b · Bestell-Tracker</h3>' +
+        '<div class="hint">Alle Drink-Bestellungen des Abends. Braucht die Admin-PIN von oben.</div>' +
+        '<div class="row" style="margin-top:12px"><button class="btn sec2" id="trk">Bestellungen laden</button></div>' +
+        '<div id="trklist"></div></div>';
+    }
 
     /* Einstellungen */
     h += '<div class="card" style="padding:16px;margin:14px 0">' +
@@ -1955,6 +2016,14 @@
     Array.prototype.forEach.call(box.querySelectorAll('[data-sel]'), function (c) {
       c.onchange = function () { modSel[c.dataset.sel] = c.checked; renderModList(); };
     });
+    if ($('#trk')) $('#trk').onclick = function () {
+      var pin = ($('#pin').value || '').trim(); if (!pin) { toast('Erst die PIN eintragen.'); return; }
+      lsSet(LS.pin, pin);
+      $('#trklist').innerHTML = '<div class="hint"><span class="sp"></span> Lade …</div>';
+      api.rpc('ep_orders_all', { p_pin: pin, p_event: CFG.eventId }).then(function (rows) {
+        $('#trklist').innerHTML = trackerHtml(rows || []);
+      }).catch(function (e) { $('#trklist').innerHTML = '<div class="hint">Ging nicht: ' + esc(e.message) + '</div>'; });
+    };
     $('#mAll').onclick = function () {
       adminRows.forEach(function (r) { modSel[r.id] = true; }); renderModList();
     };
