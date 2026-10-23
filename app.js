@@ -849,7 +849,8 @@
       h += '<label class="btn" for="cam">📷 Foto aufnehmen</label>' +
         '<input id="cam" type="file" accept="image/*" capture="environment" class="hidden">' +
         '<label class="btn sec2" for="pick" style="margin-top:10px">🖼️ Aus der Galerie wählen</label>' +
-        '<input id="pick" type="file" accept="image/*" class="hidden">';
+        '<input id="pick" type="file" accept="image/*" multiple class="hidden">' +
+        '<div class="hint" style="text-align:center">Aus der Galerie gehen mehrere Bilder auf einmal.</div>';
     }
 
     if (photos.length) {
@@ -878,7 +879,8 @@
           markMine(id);
           toast((online() ? 'Danke! Dein Foto ist gespeichert und geht in die Galerie. 🎉'
             : 'Foto gespeichert (Demo-Modus).') + storageNote(), idbOk ? 2600 : 6000);
-          go('#/tasks');
+          // Bei "Eigene Fotos" bleibt man auf der Seite und kann gleich das nächste machen
+          if (t.cat === 'free') render(); else go('#/tasks');
           flush();          // laeuft im Hintergrund weiter, auch ueber Seitenwechsel
         }).catch(function (e) {
           toast('Das Foto ließ sich nicht senden: ' + e.message +
@@ -891,9 +893,11 @@
         var inp = $('#' + k);
         if (!inp) return;
         inp.onchange = function () {
-          var f = inp.files && inp.files[0];
+          var files = Array.prototype.slice.call(inp.files || []);
+          var f = files[0];
           inp.value = '';
           if (!f) return;
+          if (files.length > 1) { sendMany(id, files); return; }
           toast('Foto wird vorbereitet …', 1500);
           compress(f).then(function (r) {
             clearPending();
@@ -908,6 +912,33 @@
   function clearPending() {
     if (pending && pending.url) URL.revokeObjectURL(pending.url);
     pending = null;
+  }
+
+  // Mehrere Bilder auf einmal: nacheinander verkleinern und in die Warteschlange
+  // legen, ohne Vorschau und Kommentar. Fortschritt als Hinweis.
+  function sendMany(taskId, files) {
+    var n = files.length, done = 0, failed = 0;
+    toast('0 von ' + n + ' Fotos vorbereitet …', 60000);
+    var chain = Promise.resolve();
+    files.forEach(function (f) {
+      chain = chain.then(function () {
+        return compress(f).then(function (r) {
+          return enqueue({
+            id: uid(), task_id: taskId, blob: r.blob, thumb: r.thumb,
+            width: r.width, height: r.height,
+            guest_name: guest || null, caption: null,
+            owner_token: ownerToken, created_at: new Date().toISOString(), tries: 0,
+          }).then(function () { markMine(taskId); done++; });
+        }).catch(function () { failed++; })
+          .then(function () { toast(done + ' von ' + n + ' Fotos vorbereitet …', 60000); });
+      });
+    });
+    chain.then(function () {
+      toast(done + ' Foto' + (done === 1 ? '' : 's') + ' gespeichert' +
+        (failed ? ', ' + failed + ' ging(en) nicht' : '') + (online() ? ' – gehen in die Galerie. 🎉' : '.'), 4000);
+      render();
+      flush();
+    });
   }
 
   /* ---- Galerie ---- */
