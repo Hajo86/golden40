@@ -182,7 +182,12 @@
       bucket: CFG.supabaseBucket || 'eventpic',
     };
   }
-  var SB = lsGet(LS.sb, null) || defaultSB();
+  // Die Werte des Gastgebers gelten feldweise: ein halb ausgefülltes
+  // Gerätefeld darf die funktionierenden Werte aus tasks.js nicht abschalten.
+  var SB = (function () {
+    var d = defaultSB(), o = lsGet(LS.sb, null) || {};
+    return { url: o.url || d.url, key: o.key || d.key, bucket: o.bucket || d.bucket };
+  })();
   function online() { return !!(SB.url && SB.key); }
   function sbUrl(p) { return String(SB.url).replace(/\/+$/, '') + p; }
   // Manche Schlüsselarten (neue "Publishable Keys") werden nur im apikey-Header
