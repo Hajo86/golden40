@@ -244,12 +244,15 @@
     // schaltet die App beim nächsten Abruf von selbst um.
     //   null = noch nicht ausprobiert, true = Funktionen da, false = ohne
     useRpc: null,
-    // Jeder Fehler der Funktion führt zum direkten Lesen — nur echte
-    // Netzprobleme nicht, die würden beide Wege gleichermaßen treffen.
+    // Nur ein wirklich fehlender Funktionsaufruf führt zum direkten Lesen.
+    // Jeder andere Fehler (Server schläft, Rechte, Netz) muss sichtbar werden:
+    // sobald das direkte Lesen auf dieses Fest gesperrt ist, käme sonst eine
+    // leere Galerie heraus — das sieht nach "keine Fotos" aus und verdeckt
+    // den eigentlichen Grund.
     _noFn: function (e) {
       var m = (e && e.message) || '';
       if (/Keine Verbindung zu/i.test(m)) return false;
-      return true;
+      return /PGRST202|could not find the function|does not exist|^404\b/i.test(m);
     },
     // owner_token wird bewusst NICHT mitgeladen: er ist der Schlüssel, mit dem
     // ein Gast sein eigenes Foto löschen darf, und hat in der Galerie aller
